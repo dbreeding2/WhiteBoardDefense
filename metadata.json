@@ -1,0 +1,6 @@
+{
+  "name": "Whiteboard Defense Assistant",
+  "description": "AI-assisted whiteboard defense platform to verify genuine student understanding of research papers and identify outline-only or AI-generated papers.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

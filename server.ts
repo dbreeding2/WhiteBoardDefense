@@ -9,13 +9,12 @@ dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
-const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
+const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3456;
 
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ extended: true, limit: "50mb" }));
+app.use(express.json({ limit: "1mb" }));
+app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 
 // ─── AI Provider Configuration ────────────────────────────────────────────────
-// Set AI_PROVIDER=openai | claude | gemini in .env to switch providers
 const AI_PROVIDER = (process.env.AI_PROVIDER || "openai").toLowerCase();
 
 const OPENAI_API_KEY  = process.env.OPENAI_API_KEY  || "";
@@ -45,7 +44,7 @@ async function openaiChat(
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       console.log(`[OpenAI] Attempt ${attempt}/${maxRetries}...`);
-      const body: any = { model: OPENAI_MODEL, messages, max_tokens: 4096 };
+      const body: any = { model: OPENAI_MODEL, messages, max_tokens: 8192, temperature: 0.2 };
       if (forceJson) body.response_format = { type: "json_object" };
       const res = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
@@ -75,7 +74,7 @@ async function claudeChat(
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       console.log(`[Claude] Attempt ${attempt}/${maxRetries}...`);
-      const body: any = { model: CLAUDE_MODEL, max_tokens: 4096, messages };
+      const body: any = { model: CLAUDE_MODEL, max_tokens: 4096, messages, temperature: 0.2 };
       if (systemPrompt) body.system = systemPrompt;
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
@@ -123,7 +122,7 @@ async function geminiChat(
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [{ parts }],
-          generationConfig: { responseMimeType: "application/json" },
+          generationConfig: { responseMimeType: "application/json", temperature: 0.2 },
         }),
       });
       if (!res.ok) throw new Error(`Gemini HTTP ${res.status}: ${await res.text()}`);
@@ -457,8 +456,23 @@ Return a JSON object for the replacement question:
   }
 });
 
+// ─── API: Evaluate diagram (DiagramBuilder component) ────────────────────────
+app.post("/api/defense/evaluate-diagram", async (req, res) => {
+  const { prompt } = req.body as { prompt: string };
+  if (!prompt) return res.status(400).json({ error: "prompt required" });
+
+  try {
+    const raw = await generateText(prompt, undefined, true);
+    const parsed = parseJsonResponse<any>(raw);
+    return res.json(parsed);
+  } catch (err: any) {
+    console.error("[evaluate-diagram] error:", err);
+    return res.status(500).json({ error: err.message || "Diagram evaluation failed" });
+  }
+});
+
 // ─── API: Defense chat (multimodal) ──────────────────────────────────────────
-app.post("/api/defense/chat", async (req, res) => {
+app.post("/api/defense/chat", express.json({ limit: "50mb" }), async (req, res) => {
   const {
     chatHistory, snapshots, studentName, paperTitle,
     courseName, questions, pastedText, conclude, activityType,

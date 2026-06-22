@@ -3,7 +3,8 @@ import { DefenseQuestion, DrawingStroke } from "../types";
 import { QRCodeSVG } from "qrcode.react";
 import Whiteboard from "./Whiteboard";
 import WordProcessor from "./WordProcessor";
-import { ChevronLeft, ChevronRight, Share2, Award, Users, AlertCircle, Sparkles, CheckCircle, FileText, Palette } from "lucide-react";
+import DiagramBuilder from "./DiagramBuilder";
+import { ChevronLeft, ChevronRight, Share2, Award, Users, AlertCircle, Palette, FileText, Network } from "lucide-react";
 
 interface DefenseSessionProps {
   sessionId: string;
@@ -11,16 +12,29 @@ interface DefenseSessionProps {
   currentQuestionIndex: number;
   onQuestionIndexChange: (idx: number) => void;
   questions: DefenseQuestion[];
-  allStrokes: DrawingStroke[][]; // 8 lists of strokes
+  allStrokes: DrawingStroke[][];
   onStrokesChange: (idx: number, strokes: DrawingStroke[]) => void;
   allDocs: string[];
   onDocChange: (idx: number, doc: string) => void;
-  activeTab: "draw" | "text";
-  onActiveTabChange: (tab: "draw" | "text") => void;
+  activeTab: "draw" | "text" | "diagram";
+  onActiveTabChange: (tab: "draw" | "text" | "diagram") => void;
   onSaveSnapshot: (idx: number, b64: string) => void;
   snapshots: string[];
   wsRef: React.MutableRefObject<WebSocket | null>;
   onProgressToChat: () => void;
+}
+
+// Keywords in focusConcept that should auto-suggest the diagram tab
+const DIAGRAM_CONCEPTS = [
+  "vlan", "network", "topology", "architecture", "failover",
+  "ospf", "routing", "firewall", "segment", "isp", "wan",
+  "hipaa", "safeguard", "noc", "siem", "diagram", "flow",
+  "infrastructure", "design", "schema",
+];
+
+function shouldSuggestDiagram(focusConcept: string): boolean {
+  const lower = focusConcept.toLowerCase();
+  return DIAGRAM_CONCEPTS.some((kw) => lower.includes(kw));
 }
 
 export default function DefenseSession({
@@ -41,57 +55,67 @@ export default function DefenseSession({
   onProgressToChat,
 }: DefenseSessionProps) {
   const [showQR, setShowQR] = useState(false);
+  const [diagramSuggested, setDiagramSuggested] = useState(false);
   const currentQuestion = questions[currentQuestionIndex];
 
-  // Construct sharing url
   const shareUrl = `${window.location.origin}/?sessionId=${sessionId}&role=student`;
 
-  // Listening to peer slide-changes via WebSocket or BroadcastChannel
+  // Auto-suggest diagram tab when question changes to a topology/architecture concept
   useEffect(() => {
-    // Also use BroadcastChannel for slide switching on same computer
+    if (!currentQuestion) return;
+    const suggest = shouldSuggestDiagram(currentQuestion.focusConcept);
+    setDiagramSuggested(suggest && activeTab !== "diagram");
+  }, [currentQuestionIndex, currentQuestion]);
+
+  // BroadcastChannel slide sync
+  useEffect(() => {
     const slideChan = new BroadcastChannel(`slide_sync_${sessionId}`);
-    
     slideChan.onmessage = (event) => {
       const { type, idx } = event.data;
       if (type === "slide_change" && idx !== currentQuestionIndex) {
         onQuestionIndexChange(idx);
       }
     };
-
-    return () => {
-      slideChan.close();
-    };
+    return () => { slideChan.close(); };
   }, [sessionId, currentQuestionIndex, onQuestionIndexChange]);
 
   const changeSlide = (newIdx: number) => {
     if (newIdx < 0 || newIdx >= questions.length) return;
     onQuestionIndexChange(newIdx);
+    setDiagramSuggested(false);
 
-    // Broadcast slide position to WebSocket
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(
-        JSON.stringify({
-          type: "slide_change",
-          sessionId,
-          role,
-          data: {
-            idx: newIdx,
-          },
-        })
-      );
+      wsRef.current.send(JSON.stringify({
+        type: "slide_change",
+        sessionId,
+        role,
+        data: { idx: newIdx },
+      }));
     }
-
-    // Broadcast to BroadcastChannel
     const slideChan = new BroadcastChannel(`slide_sync_${sessionId}`);
     slideChan.postMessage({ type: "slide_change", idx: newIdx });
     slideChan.close();
+  };
+
+  const handleTabChange = (tab: "draw" | "text" | "diagram") => {
+    onActiveTabChange(tab);
+    if (tab === "diagram") setDiagramSuggested(false);
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({
+        type: "tab_change",
+        sessionId,
+        role,
+        data: { tab },
+      }));
+    }
   };
 
   const currentQuestionStrokes = allStrokes[currentQuestionIndex] || [];
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
-      {/* Session header banner */}
+
+      {/* Session header */}
       <div className="bg-[#111] text-white rounded-2xl p-6 shadow-xl border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
@@ -104,37 +128,33 @@ export default function DefenseSession({
           </div>
           <h2 className="text-xl font-serif italic text-white/95">Stage 3 — Whiteboard In-Depth Probing</h2>
           <p className="text-xs text-white/40">
-            Student answers the customized analytical questions by drawing schema and derivations on the canvas in real-time.
+            Student answers questions by drawing, typing, or constructing a network diagram on the live board.
           </p>
         </div>
 
-        {/* Core Controls per Role */}
         <div className="flex flex-wrap items-center gap-3">
           {role !== "student" && (
             <button
               type="button"
-              id="session-toggle-qr-btn"
               onClick={() => setShowQR(!showQR)}
               className="flex items-center gap-1.5 bg-white/5 border border-white/15 text-white hover:bg-white/10 p-2.5 px-4 rounded-xl text-xs font-semibold transition"
             >
-              <Share2 className="w-3.5 h-3.5 text-indigo-400" /> Share Student Board (QR Code)
+              <Share2 className="w-3.5 h-3.5 text-indigo-400" /> Share Student Board
             </button>
           )}
-
           {role !== "student" && (
             <button
               type="button"
-              id="progress-to-followup-chat-btn"
               onClick={onProgressToChat}
               className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white p-2.5 px-5 rounded-xl text-xs font-bold shadow-md transition hover:scale-105 active:scale-95"
             >
-              Proceed to AI Probing Chat <Award className="w-3.5 h-3.5 text-white" />
+              Proceed to AI Probing Chat <Award className="w-3.5 h-3.5" />
             </button>
           )}
         </div>
       </div>
 
-      {/* QR Code sharing flyout drawer if toggled */}
+      {/* QR drawer */}
       {showQR && (
         <div className="bg-[#161622] border border-indigo-500/20 rounded-2xl p-6 shadow-sm grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
           <div className="md:col-span-3 flex justify-center">
@@ -147,17 +167,13 @@ export default function DefenseSession({
               <Users className="w-4 h-4 text-indigo-400" /> Cast Student Whiteboard to Tablet or iPad
             </h4>
             <p className="text-xs text-white/50 leading-relaxed">
-              Have the student scan this QR code on their stylus-equipped tablet/mobile device. They can sketch fluidly in full-screen Canvas Mode while you observe and control the active defense question index live from your computer browser.
+              Have the student scan this QR code on their stylus-equipped tablet. They can sketch in full-screen Canvas Mode while you observe and control the active question from your browser.
             </p>
             <div className="p-3 border border-white/10 bg-black rounded-lg flex items-center justify-between">
               <span className="text-xs font-mono text-white/40 truncate grow mr-2">{shareUrl}</span>
               <button
                 type="button"
-                id="copy-session-link"
-                onClick={() => {
-                  navigator.clipboard.writeText(shareUrl);
-                  alert("Student collaboration invitation link copied to clipboard!");
-                }}
+                onClick={() => { navigator.clipboard.writeText(shareUrl); alert("Link copied!"); }}
                 className="text-[10px] uppercase font-bold text-indigo-400 hover:underline shrink-0 font-mono"
               >
                 Copy Link
@@ -167,26 +183,27 @@ export default function DefenseSession({
         </div>
       )}
 
-      {/* Main Board Work Space */}
+      {/* Main layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        
-        {/* Left column: Sidebar list of 8 Questions */}
+
+        {/* Left sidebar */}
         <div className="lg:col-span-3 space-y-4">
           <div className="bg-[#111] rounded-xl border border-white/5 p-4 space-y-3">
             <h3 className="text-[10px] font-bold uppercase text-white/40 tracking-widest font-mono">
-              Verification Roadmap (1-8)
+              Verification Roadmap (1-{questions.length})
             </h3>
             <div className="space-y-2">
               {questions.map((q, idx) => {
                 const isActive = idx === currentQuestionIndex;
                 const hasSnapshot = !!snapshots[idx];
+                const isDiagramQ = shouldSuggestDiagram(q.focusConcept);
                 return (
                   <button
                     key={q.id}
                     type="button"
                     onClick={() => {
                       if (role === "student") {
-                        alert("Students are in sync mode. Only instructors can navigate defense slides.");
+                        alert("Students are in sync mode. Only instructors can navigate slides.");
                         return;
                       }
                       changeSlide(idx);
@@ -197,17 +214,24 @@ export default function DefenseSession({
                         : "bg-black/30 border-white/5 hover:border-white/20 text-white/70 hover:text-white"
                     }`}
                   >
-                    <span className={`w-5 h-5 rounded flex items-center justify-center font-mono font-bold text-[10px] ${
+                    <span className={`w-5 h-5 rounded flex items-center justify-center font-mono font-bold text-[10px] shrink-0 ${
                       isActive ? "bg-indigo-600/35 text-indigo-300 border border-indigo-500/30" : "bg-white/5 text-white/40"
                     }`}>
                       {q.num}
                     </span>
                     <span className="truncate grow">{q.focusConcept}</span>
-                    {hasSnapshot && (
-                      <span className="text-[9px] bg-emerald-950/40 text-emerald-400 p-0.5 px-1.5 rounded border border-emerald-900/50 font-bold font-mono">
-                        Saved
-                      </span>
-                    )}
+                    <div className="flex items-center gap-1 shrink-0">
+                      {isDiagramQ && (
+                        <span title="Diagram question" className="text-indigo-400/50">
+                          <Network className="w-3 h-3" />
+                        </span>
+                      )}
+                      {hasSnapshot && (
+                        <span className="text-[9px] bg-emerald-950/40 text-emerald-400 p-0.5 px-1.5 rounded border border-emerald-900/50 font-bold font-mono">
+                          Saved
+                        </span>
+                      )}
+                    </div>
                   </button>
                 );
               })}
@@ -219,14 +243,15 @@ export default function DefenseSession({
               <AlertCircle className="w-3.5 h-3.5 text-amber-500" /> Instructor Pro Tip
             </h4>
             <p className="text-[11px] text-white/50 leading-relaxed">
-              When student finishes sketching a proof or outline, make sure to change slides or let the automatic snapshot record the whiteboard drawings. This base64 canvas state is saved and injected as direct image parts in the AI follow-up interview module.
+              Questions marked with a <Network className="w-3 h-3 inline text-indigo-400/50" /> icon are topology or architecture questions — switch to the <span className="text-indigo-400">Diagram Board</span> tab and have the student construct the network from components to verify genuine understanding.
             </p>
           </div>
         </div>
 
-        {/* Right column: Main active whiteboard workspace */}
+        {/* Right: workspace */}
         <div className="lg:col-span-9 space-y-4 flex flex-col">
-          {/* Question Display Card */}
+
+          {/* Question display */}
           <div className="bg-[#111] border border-white/5 rounded-xl p-5 shadow-inner">
             <div className="flex items-center gap-2">
               <span className="text-[10px] bg-indigo-500/10 text-indigo-450 border border-indigo-500/20 py-0.5 px-2 rounded font-mono font-bold">
@@ -235,61 +260,72 @@ export default function DefenseSession({
               <span className="text-xs font-mono font-bold text-white/40 uppercase tracking-widest">
                 — {currentQuestion.focusConcept}
               </span>
+              {shouldSuggestDiagram(currentQuestion.focusConcept) && (
+                <span className="ml-auto flex items-center gap-1 text-[10px] text-indigo-400/70 font-mono">
+                  <Network className="w-3 h-3" /> Diagram question
+                </span>
+              )}
             </div>
             <p className="text-white/90 text-sm md:text-base leading-relaxed mt-2.5 font-medium whitespace-pre-line font-sans">
               {currentQuestion.questionText}
             </p>
           </div>
 
-          {/* Workspace Tab Triggers */}
+          {/* Diagram suggestion banner */}
+          {diagramSuggested && activeTab !== "diagram" && (
+            <div className="bg-indigo-950/40 border border-indigo-500/30 rounded-xl px-4 py-3 flex items-center gap-3">
+              <Network className="w-4 h-4 text-indigo-400 shrink-0" />
+              <p className="text-xs text-indigo-300 flex-1">
+                This is a topology/architecture question. The <strong>Diagram Board</strong> lets the student construct the network from components — a stronger integrity check than freehand drawing.
+              </p>
+              <button
+                type="button"
+                onClick={() => handleTabChange("diagram")}
+                className="shrink-0 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition"
+              >
+                Switch to Diagram Board
+              </button>
+              <button
+                type="button"
+                onClick={() => setDiagramSuggested(false)}
+                className="shrink-0 text-white/20 hover:text-white/40 text-xs font-mono"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          {/* Tab bar */}
           <div className="flex border-b border-white/5 gap-0.5 select-none pt-1">
-            <button
-              type="button"
-              onClick={() => {
-                onActiveTabChange("draw");
-                if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-                  wsRef.current.send(JSON.stringify({
-                    type: "tab_change",
-                    sessionId,
-                    role,
-                    data: { tab: "draw" }
-                  }));
-                }
-              }}
-              className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold font-mono uppercase tracking-wider transition border-t-2 rounded-t-lg ${
-                activeTab === "draw"
-                  ? "bg-[#0d0d11] border-indigo-500 text-[#818CF8]"
-                  : "bg-transparent border-transparent text-white/40 hover:text-white"
-              }`}
-            >
-              <Palette className="w-3.5 h-3.5" /> Drawing Board
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                onActiveTabChange("text");
-                if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-                  wsRef.current.send(JSON.stringify({
-                    type: "tab_change",
-                    sessionId,
-                    role,
-                    data: { tab: "text" }
-                  }));
-                }
-              }}
-              className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold font-mono uppercase tracking-wider transition border-t-2 rounded-t-lg ${
-                activeTab === "text"
-                  ? "bg-[#0d0d11] border-indigo-500 text-[#818CF8]"
-                  : "bg-transparent border-transparent text-white/40 hover:text-white"
-              }`}
-            >
-              <FileText className="w-3.5 h-3.5" /> Text Word Processor
-            </button>
+            {(
+              [
+                { id: "draw",    label: "Drawing Board",   Icon: Palette },
+                { id: "text",    label: "Word Processor",  Icon: FileText },
+                { id: "diagram", label: "Diagram Board",   Icon: Network },
+              ] as const
+            ).map(({ id, label, Icon }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => handleTabChange(id)}
+                className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold font-mono uppercase tracking-wider transition border-t-2 rounded-t-lg ${
+                  activeTab === id
+                    ? "bg-[#0d0d11] border-indigo-500 text-[#818CF8]"
+                    : "bg-transparent border-transparent text-white/40 hover:text-white"
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                {label}
+                {id === "diagram" && shouldSuggestDiagram(currentQuestion.focusConcept) && activeTab !== "diagram" && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse ml-0.5" />
+                )}
+              </button>
+            ))}
           </div>
 
-          {/* Interactive Whiteboard or Word Processor component wrapper */}
+          {/* Workspace */}
           <div className="flex-1">
-            {activeTab === "draw" ? (
+            {activeTab === "draw" && (
               <Whiteboard
                 sessionId={sessionId}
                 questionIndex={currentQuestionIndex}
@@ -299,7 +335,8 @@ export default function DefenseSession({
                 onCaptureSnapshot={(b64) => onSaveSnapshot(currentQuestionIndex, b64)}
                 wsRef={wsRef}
               />
-            ) : (
+            )}
+            {activeTab === "text" && (
               <WordProcessor
                 sessionId={sessionId}
                 questionIndex={currentQuestionIndex}
@@ -310,13 +347,21 @@ export default function DefenseSession({
                 wsRef={wsRef}
               />
             )}
+            {activeTab === "diagram" && (
+              <DiagramBuilder
+                questionIndex={currentQuestionIndex}
+                focusConcept={currentQuestion.focusConcept}
+                questionText={currentQuestion.questionText}
+                onCaptureSnapshot={(b64) => onSaveSnapshot(currentQuestionIndex, b64)}
+                role={role}
+              />
+            )}
           </div>
 
-          {/* Pagination buttons */}
+          {/* Pagination */}
           <div className="flex items-center justify-between pt-1">
             <button
               type="button"
-              id="prev-slide-button"
               onClick={() => changeSlide(currentQuestionIndex - 1)}
               disabled={currentQuestionIndex === 0 || role === "student"}
               className="flex items-center gap-1 border border-white/10 hover:bg-white/5 text-white font-semibold text-xs rounded-xl p-2 px-4 disabled:opacity-40 transition"
@@ -328,7 +373,6 @@ export default function DefenseSession({
             </div>
             <button
               type="button"
-              id="next-slide-button"
               onClick={() => changeSlide(currentQuestionIndex + 1)}
               disabled={currentQuestionIndex === questions.length - 1 || role === "student"}
               className="flex items-center gap-1 border border-white/10 hover:bg-white/5 text-white font-semibold text-xs rounded-xl p-2 px-4 disabled:opacity-40 transition"
@@ -337,7 +381,6 @@ export default function DefenseSession({
             </button>
           </div>
         </div>
-
       </div>
     </div>
   );

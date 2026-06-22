@@ -1,4 +1,4 @@
-import React, { useState, FormEvent } from "react";
+import React, { useState, FormEvent, useRef } from "react";
 import { 
   ChevronRight, 
   FileText, 
@@ -10,7 +10,9 @@ import {
   Presentation, 
   GraduationCap, 
   Layers, 
-  FileCode 
+  FileCode,
+  Image,
+  X
 } from "lucide-react";
 
 interface SetupFormProps {
@@ -37,7 +39,7 @@ const activityConfigs: {
     icon: FileText,
     titleLabel: "Research Paper Title",
     titlePlaceholder: "e.g. Simulating Physics with Computers",
-    fileLabel: "Manuscript file ingestion (text, md, or pdf metadata)",
+    fileLabel: "Manuscript file ingestion (text, md, pdf, or pptx)",
     fileDesc: "Drag & drop or click browse below to upload paper files",
     pastedLabel: "Paste Manuscript Content Text",
     pastedPlaceholder: "Paste the abstract, core equations, experimental details, conclusions, and structural outline here..."
@@ -57,8 +59,8 @@ const activityConfigs: {
     icon: Presentation,
     titleLabel: "Presentation / Slide Deck Title",
     titlePlaceholder: "e.g. Commercializing Fusion Energy Bounds",
-    fileLabel: "Slide transcript, bullet outlines, or notes files",
-    fileDesc: "Drag & drop or click browse below to upload slide-related files",
+    fileLabel: "Upload .pptx slide deck or paste notes below",
+    fileDesc: "Drag & drop or click browse — .pptx files are automatically parsed",
     pastedLabel: "Paste Slide Outlines, Speaker Notes, or Transcripts",
     pastedPlaceholder: "Paste the slide-by-slide titles, key bullet points, and speaker notes representing the slides' claims..."
   },
@@ -74,6 +76,79 @@ const activityConfigs: {
   }
 };
 
+// ─── PPTX text extraction ─────────────────────────────────────────────────────
+// Extracts readable text from all slide XML files inside a .pptx zip archive.
+// Does NOT render slides as images — just pulls the text content for AI analysis.
+async function extractPptxText(file: File): Promise<string> {
+  // Dynamically import JSZip — it's already in node_modules via the xlsx dependency chain
+  // If JSZip is not available, fall back to a helpful error message
+  let JSZip: any;
+  try {
+    // Try the package that's most likely bundled
+    const mod = await import("jszip");
+    JSZip = mod.default || mod;
+  } catch {
+    throw new Error("JSZip not available. Please paste the slide content manually.");
+  }
+
+  const arrayBuffer = await file.arrayBuffer();
+  const zip = await JSZip.loadAsync(arrayBuffer);
+
+  const slideFiles = Object.keys(zip.files)
+    .filter((name) => /^ppt\/slides\/slide\d+\.xml$/.test(name))
+    .sort((a, b) => {
+      const numA = parseInt(a.match(/slide(\d+)/)?.[1] || "0");
+      const numB = parseInt(b.match(/slide(\d+)/)?.[1] || "0");
+      return numA - numB;
+    });
+
+  if (slideFiles.length === 0) {
+    throw new Error("No slides found in this .pptx file.");
+  }
+
+  const slideTexts: string[] = [];
+
+  for (let i = 0; i < slideFiles.length; i++) {
+    const xmlContent = await zip.files[slideFiles[i]].async("string");
+    // Strip XML tags and extract text nodes
+    const textMatches = xmlContent.match(/<a:t[^>]*>([^<]+)<\/a:t>/g) || [];
+    const slideText = textMatches
+      .map((match) => match.replace(/<[^>]+>/g, "").trim())
+      .filter((t) => t.length > 0)
+      .join(" ");
+    if (slideText.trim()) {
+      slideTexts.push(`[Slide ${i + 1}] ${slideText}`);
+    }
+  }
+
+  if (slideTexts.length === 0) {
+    throw new Error("Could not extract text from slides. Try pasting the content manually.");
+  }
+
+  return slideTexts.join("\n\n");
+}
+
+// ─── Image compression helper ─────────────────────────────────────────────────
+// Resizes and compresses an image to max 1280px wide at 75% JPEG quality.
+// Returns a compressed base64 data URL.
+async function compressImage(dataUrl: string, maxWidth = 1280, quality = 0.75): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new window.Image();
+    img.onload = () => {
+      const scale = img.width > maxWidth ? maxWidth / img.width : 1;
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { reject(new Error("Canvas context unavailable")); return; }
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+    img.onerror = () => reject(new Error("Failed to load image for compression"));
+    img.src = dataUrl;
+  });
+}
+
 export default function SetupForm({ onSetupComplete, isLoading, assessmentMode, setAssessmentMode }: SetupFormProps) {
   const [studentName, setStudentName] = useState("");
   const [paperTitle, setPaperTitle] = useState("");
@@ -81,30 +156,104 @@ export default function SetupForm({ onSetupComplete, isLoading, assessmentMode, 
   const [pastedText, setPastedText] = useState("");
   const [fileName, setFileName] = useState<string | null>(null);
   const [activityType, setActivityType] = useState<string>("paper");
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [fileLoading, setFileLoading] = useState(false);
+
+  // Diagram paste zone state
+  const [pastedDiagram, setPastedDiagram] = useState<string | null>(null);
+  const [diagramCompressing, setDiagramCompressing] = useState(false);
+  const pasteZoneRef = useRef<HTMLDivElement>(null);
 
   const currentConfig = activityConfigs[activityType] || activityConfigs.paper;
 
-  // Read uploaded text or PDF (name mapping fallback)
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // ─── File upload handler ──────────────────────────────────────────────────
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setFileName(file.name);
-    
-    // Auto populate paper title if empty based on filename
+    setFileError(null);
+    setFileLoading(true);
+
+    // Auto-populate title from filename
     const sanitizedTitle = file.name.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ");
     if (!paperTitle) {
       setPaperTitle(sanitizedTitle);
     }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const text = event.target?.result as string;
-      if (text) {
-        setPastedText(text);
+    try {
+      if (file.name.toLowerCase().endsWith(".pptx")) {
+        // PPTX: extract text from slide XML
+        const extracted = await extractPptxText(file);
+        setPastedText(extracted);
+      } else {
+        // Plain text / markdown / other text files
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const text = event.target?.result as string;
+          if (text) setPastedText(text);
+          setFileLoading(false);
+        };
+        reader.onerror = () => {
+          setFileError("Could not read file. Try pasting the content manually.");
+          setFileLoading(false);
+        };
+        reader.readAsText(file);
+        return; // FileReader is async via callback, return here
       }
+    } catch (err: any) {
+      setFileError(err?.message || "Failed to process file. Try pasting the content manually.");
+    }
+
+    setFileLoading(false);
+  };
+
+  // ─── Diagram paste handler ────────────────────────────────────────────────
+  const handleDiagramPaste = async (e: React.ClipboardEvent<HTMLDivElement>) => {
+    const items = Array.from(e.clipboardData.items);
+    const imageItem = items.find((item) => item.type.startsWith("image/"));
+    if (!imageItem) return;
+
+    e.preventDefault();
+    setDiagramCompressing(true);
+
+    const blob = imageItem.getAsFile();
+    if (!blob) { setDiagramCompressing(false); return; }
+
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      try {
+        const raw = ev.target?.result as string;
+        const compressed = await compressImage(raw);
+        setPastedDiagram(compressed);
+      } catch {
+        // If compression fails, use the raw image
+        setPastedDiagram(ev.target?.result as string);
+      }
+      setDiagramCompressing(false);
     };
-    reader.readAsText(file);
+    reader.readAsDataURL(blob);
+  };
+
+  // Also handle drop on the paste zone
+  const handleDiagramDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (!file || !file.type.startsWith("image/")) return;
+
+    setDiagramCompressing(true);
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      try {
+        const raw = ev.target?.result as string;
+        const compressed = await compressImage(raw);
+        setPastedDiagram(compressed);
+      } catch {
+        setPastedDiagram(ev.target?.result as string);
+      }
+      setDiagramCompressing(false);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSubmit = (e: FormEvent) => {
@@ -203,7 +352,7 @@ export default function SetupForm({ onSetupComplete, isLoading, assessmentMode, 
           />
         </div>
 
-        {/* Paper material upload */}
+        {/* File upload */}
         <div className="space-y-4 pt-2">
           <div className="border-2 border-dashed border-white/10 rounded-xl p-5 bg-white/5 hover:bg-white/10 transition relative">
             <div className="flex flex-col items-center justify-center text-center">
@@ -214,14 +363,81 @@ export default function SetupForm({ onSetupComplete, isLoading, assessmentMode, 
               <input
                 type="file"
                 id="paper-file-upload-input"
-                accept=".txt,.md,.pdf"
+                accept=".txt,.md,.pdf,.pptx"
                 onChange={handleFileUpload}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               />
 
-              {fileName && (
+              {fileLoading && (
+                <div className="mt-2 flex items-center gap-2 text-indigo-400 text-xs font-mono">
+                  <div className="w-3 h-3 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin"></div>
+                  Extracting slide content...
+                </div>
+              )}
+
+              {fileName && !fileLoading && (
                 <div className="mt-2 bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-xs px-3 py-1 rounded-full font-mono flex items-center gap-1">
                   📎 {fileName}
+                  {pastedText && <span className="text-emerald-400 ml-1">✓ extracted</span>}
+                </div>
+              )}
+
+              {fileError && (
+                <div className="mt-2 bg-red-500/10 border border-red-500/30 text-red-400 text-xs px-3 py-1.5 rounded-lg font-mono">
+                  ⚠ {fileError}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Diagram paste zone */}
+          <div className="space-y-1">
+            <label className="text-xs font-semibold tracking-wide text-white/50 uppercase flex items-center gap-1.5 font-mono">
+              <Image className="w-3.5 h-3.5 text-indigo-400" /> Paste a Diagram or Screenshot (optional)
+            </label>
+            <div
+              ref={pasteZoneRef}
+              tabIndex={0}
+              onPaste={handleDiagramPaste}
+              onDrop={handleDiagramDrop}
+              onDragOver={(e) => e.preventDefault()}
+              className="border-2 border-dashed border-white/10 rounded-xl p-4 bg-white/3 hover:bg-white/5 transition focus:outline-none focus:border-indigo-500/50 min-h-[80px] flex items-center justify-center cursor-pointer relative"
+            >
+              {diagramCompressing && (
+                <div className="flex items-center gap-2 text-indigo-400 text-xs font-mono">
+                  <div className="w-3 h-3 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin"></div>
+                  Compressing image...
+                </div>
+              )}
+
+              {!pastedDiagram && !diagramCompressing && (
+                <div className="text-center pointer-events-none">
+                  <Image className="w-6 h-6 text-white/20 mx-auto mb-1" />
+                  <p className="text-[11px] text-white/30 font-mono">
+                    Click here, then press <span className="text-white/50">Ctrl+V</span> to paste a diagram
+                  </p>
+                  <p className="text-[10px] text-white/20 mt-0.5">or drag and drop an image file — auto-compressed before sending</p>
+                </div>
+              )}
+
+              {pastedDiagram && !diagramCompressing && (
+                <div className="relative w-full">
+                  <img
+                    src={pastedDiagram}
+                    alt="Pasted diagram"
+                    className="max-h-48 mx-auto rounded-lg object-contain border border-white/10"
+                  />
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setPastedDiagram(null); }}
+                    className="absolute top-1 right-1 bg-red-500/20 hover:bg-red-500/40 text-red-400 rounded-full p-1 transition"
+                    title="Remove diagram"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                  <p className="text-[10px] text-emerald-400 font-mono text-center mt-1.5">
+                    ✓ Diagram attached — will be included in defense analysis
+                  </p>
                 </div>
               )}
             </div>
@@ -243,7 +459,7 @@ export default function SetupForm({ onSetupComplete, isLoading, assessmentMode, 
           </div>
         </div>
 
-        {/* Assessment Mode selection card row */}
+        {/* Assessment Mode selection */}
         <div className="space-y-3 pt-4 border-t border-white/5">
           <label className="text-xs font-semibold tracking-wide text-white/50 uppercase flex items-center gap-1.5 font-mono">
             <Layers className="w-3.5 h-3.5 text-indigo-400" /> Choose Assessment Mode
@@ -263,7 +479,7 @@ export default function SetupForm({ onSetupComplete, isLoading, assessmentMode, 
                 <span className="text-xs font-bold font-mono uppercase tracking-wide">AI-Managed Mode</span>
               </div>
               <p className="text-[11px] text-white/50 leading-relaxed">
-                Gemini automatically orchestrates the follow-up oral inquiries, reviews candidate answers, and compiles final scoremark reports.
+                AI automatically orchestrates the follow-up oral inquiries, reviews candidate answers, and compiles final scoremark reports.
               </p>
             </button>
             <button
@@ -289,12 +505,12 @@ export default function SetupForm({ onSetupComplete, isLoading, assessmentMode, 
 
         <div className="pt-4 border-t border-white/10 flex items-center justify-between">
           <div className="text-[11px] text-white/30 font-mono tracking-wide">
-            Powered by Gemini 3.5 Analytical Synthesis
+            Whiteboard Defense Platform
           </div>
           <button
             type="submit"
             id="setup-submit-btn"
-            disabled={isLoading || !paperTitle.trim() || !pastedText.trim()}
+            disabled={isLoading || fileLoading || !paperTitle.trim() || !pastedText.trim()}
             className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl text-sm font-semibold shadow-md active:scale-95 transition disabled:opacity-50 cursor-pointer"
           >
             {isLoading ? (

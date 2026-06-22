@@ -23,7 +23,7 @@ export default function App() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [allQuestionStrokes, setAllQuestionStrokes] = useState<DrawingStroke[][]>(Array(8).fill([]));
   const [allQuestionDocs, setAllQuestionDocs] = useState<string[]>(Array(8).fill(""));
-  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<'draw' | 'text'>('draw');
+  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<'draw' | 'text' | 'diagram'>('draw');
   const [snapshots, setSnapshots] = useState<string[]>(Array(8).fill(""));
 
   // Follow-up chat and evaluation

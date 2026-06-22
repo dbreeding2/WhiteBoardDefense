@@ -1,20 +1,19 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# WhiteBoardDefense
 
-# Run and deploy your AI Studio app
+AI-assisted whiteboard defense platform for verifying genuine student 
+understanding of research papers.
 
-This contains everything you need to run your app locally.
+## Supported AI Providers
+- OpenAI (gpt-4o-mini)
+- Claude (claude-haiku-4-5-20251001)
+- Google Gemini (gemini-2.0-flash)
 
-View your app in AI Studio: https://ai.studio/apps/a0eebe53-822b-4758-b20e-1a963201e366
+## Setup
+1. `npm install`
+2. Copy `.env.example` to `.env` and add your API key
+3. Set `AI_PROVIDER=openai`, `claude`, or `gemini` in `.env`
+4. `npm run build`
+5. `node dist/server.cjs`
 
-## Run Locally
-
-**Prerequisites:**  Node.js
-
-
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## IIS Deployment
+See DEPLOYMENT_GUIDE.md for full Windows Server 2025 / IIS setup instructions.

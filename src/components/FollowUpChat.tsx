@@ -39,6 +39,8 @@ export default function FollowUpChat({
   const [isAiResponding, setIsAiResponding] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [sendAs, setSendAs] = useState<'student' | 'instructor'>(role === "instructor" ? "instructor" : "student");
+  const [studentTurnCount, setStudentTurnCount] = useState(0);
+  const MAX_TURNS = 16; // 2 follow-ups per question × 8 questions
   
   // Grading scorecard states for Instructor
   const [showGradingPanel, setShowGradingPanel] = useState(false);
@@ -202,26 +204,46 @@ export default function FollowUpChat({
 
     // Initiate AI reply ONLY if we are in AI mode AND the comment came from a student
     if (assessmentMode === "ai" && msgSender === "student") {
-      await triggerAiTurn(false, [...chatHistory, newMsg]);
+      const newCount = studentTurnCount + 1;
+      setStudentTurnCount(newCount);
+      if (newCount >= MAX_TURNS) {
+        // Auto-conclude: student has reached the turn limit
+        const limitMsg: ChatMessage = {
+          id: `sys_limit_${Date.now()}`,
+          sender: "system",
+          text: `Defense exchange complete (${MAX_TURNS} responses recorded). Generating your final assessment now...`,
+          timestamp: new Date().toISOString()
+        };
+        onAddChatMessage(limitMsg);
+        notifyPeerStateChange("chat_message_received", { message: limitMsg });
+        await handleConcludeDefense();
+      } else {
+        await triggerAiTurn(false, [...chatHistory, newMsg], newCount);
+      }
     }
   };
 
-  const triggerAiTurn = async (isFirst: boolean = false, activeHistory: ChatMessage[] = chatHistory) => {
+  const triggerAiTurn = async (isFirst: boolean = false, activeHistory: ChatMessage[] = chatHistory, currentTurn: number = studentTurnCount) => {
     setIsAiResponding(true);
     notifyPeerStateChange("ai_state_change", { state: true });
+
+    const isNearEnd = currentTurn >= MAX_TURNS - 2;
 
     let fetchPromptBody = {
       chatHistory: isFirst
         ? [{ sender: "system", text: "Commence defense questions.", timestamp: new Date().toISOString() }]
         : activeHistory,
-      snapshots: snapshots, // base64 visual snapshots of math/diagrams
+      snapshots: snapshots,
       studentName,
       paperTitle,
       courseName,
       questions,
       pastedText,
       conclude: false,
-      activityType
+      activityType,
+      turnCount: currentTurn,
+      maxTurns: MAX_TURNS,
+      isNearEnd,
     };
 
     try {
@@ -440,6 +462,9 @@ export default function FollowUpChat({
           </div>
           <span className="text-[9px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded-full font-mono font-bold">
             Active session: {sessionId}
+          </span>
+          <span className="text-[9px] bg-white/5 text-white/40 border border-white/10 px-2 py-0.5 rounded-full font-mono font-bold">
+            {studentTurnCount} / {MAX_TURNS} responses
           </span>
         </div>
 

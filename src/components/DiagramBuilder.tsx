@@ -45,10 +45,12 @@ interface DiagramEvaluation {
 
 interface DiagramBuilderProps {
   questionIndex: number;
-  focusConcept: string;       // from DefenseQuestion.focusConcept
-  questionText: string;       // from DefenseQuestion.questionText
+  focusConcept: string;
+  questionText: string;
   onCaptureSnapshot: (b64: string) => void;
   role: "student" | "instructor" | "both";
+  diagramState?: { nodes: DiagramNode[]; edges: DiagramEdge[]; nextId: number } | null;
+  onDiagramStateChange?: (state: { nodes: DiagramNode[]; edges: DiagramEdge[]; nextId: number }) => void;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -83,7 +85,7 @@ const DEFS: Record<string, NodeDef> = {
   database: { icon: "⊚",  label: "Database",    color: "#fbbf24", fill: "#1c0a00", stroke: "#92400e" },
   client:   { icon: "▯",  label: "Client",      color: "#60a5fa", fill: "#0c1a2e", stroke: "#1e40af" },
   module:   { icon: "▤",  label: "Module",      color: "#9ca3af", fill: "#111827", stroke: "#374151" },
-  function: { icon: "λ",  label: "Function",    color: "#f87171", fill: "#450a0a", stroke: "#991b1b" },
+  function: { icon: "λ",  label: "Function",    color: "#34d399", fill: "#022c22", stroke: "#059669" },
   object:   { icon: "◈",  label: "Object",      color: "#fb923c", fill: "#431407", stroke: "#c2410c" },
   event:    { icon: "⚡", label: "Event",       color: "#fca5a5", fill: "#2d0a1f", stroke: "#b91c1c" },
   state:    { icon: "◉",  label: "State",       color: "#6ee7b7", fill: "#022c22", stroke: "#059669" },
@@ -127,22 +129,22 @@ const SCENARIO_PALETTES: Array<{
 }> = [
   // ── Networking / Security ──────────────────────────────────────────────────
   {
-    keywords: ["vlan", "segmentation", "segment", "clinic", "network"],
+    keywords: ["vlan", "segmentation", "segment", "clinic", "network topology", "network design"],
     components: ["firewall", "switch", "vlan", "vlan", "vlan", "endpoint", "wifi"],
     hint: "Show at least three VLANs, place the firewall at the enforcement boundary, label each VLAN.",
   },
   {
-    keywords: ["failover", "redundan", "ospf", "isp", "wan", "backup"],
+    keywords: ["failover", "redundan", "ospf", "isp", "wan", "backup link"],
     components: ["router", "router", "firewall", "cloud", "isp", "isp"],
     hint: "Show primary and backup ISP paths, dual edge routers, and the cloud destination.",
   },
   {
-    keywords: ["hipaa", "safeguard", "compliance", "phy", "admin", "technical"],
+    keywords: ["hipaa", "safeguard", "compliance", "administrative control", "technical control"],
     components: ["shield", "server", "lock", "endpoint", "noc", "cloud"],
     hint: "Map all three HIPAA safeguard categories (administrative, physical, technical) to components.",
   },
   {
-    keywords: ["noc", "siem", "log", "monitor", "alert", "incident"],
+    keywords: ["noc", "siem", "log monitoring", "alert", "incident response"],
     components: ["noc", "siem", "firewall", "switch", "router", "server"],
     hint: "Connect log sources to the SIEM, then show the NOC analyst connection and alert path.",
   },
@@ -203,7 +205,22 @@ const SCENARIO_PALETTES: Array<{
     components: ["datasrc", "database", "store", "process", "output", "api"],
     hint: "Draw the schema with tables as nodes, show foreign key relationships, and trace a sample query path.",
   },
-  // ── General / CIS / Flowchart ───────────────────────────────────────────────
+  // ── Code / Function Call Diagrams ──────────────────────────────────────────
+  {
+    keywords: ["function", "call", "execution", "stack", "main(", "flowchart", "breakdown", "trace", "control flow", "pseudocode"],
+    components: ["start", "function", "process", "decision", "output", "module"],
+    hint: "Start with the entry point, show each function call as a node, use Decision for branches, and label each arrow with what triggers the call.",
+  },
+  {
+    keywords: ["loop", "iteration", "recursion", "while", "for loop", "base case"],
+    components: ["start", "decision", "process", "function", "output", "state"],
+    hint: "Show the loop condition as a Decision node, the loop body as Process nodes, and mark the base case or exit condition clearly.",
+  },
+  {
+    keywords: ["runtime", "memory", "heap", "stack frame", "pointer", "variable scope"],
+    components: ["start", "function", "store", "object", "state", "output"],
+    hint: "Diagram the call stack frames as Function nodes, show variables in Store nodes, and trace how memory is allocated and released.",
+  },
   {
     keywords: ["process", "flowchart", "flow", "diagram", "system", "design"],
     components: ["start", "process", "decision", "process", "store", "output"],
@@ -217,6 +234,29 @@ const SCENARIO_PALETTES: Array<{
 ];
 
 const ALL_COMPONENTS = Object.keys(DEFS);
+
+// Domain-specific component sets — shown in palette based on detected scenario
+const DOMAIN_COMPONENTS: Record<string, string[]> = {
+  networking: ["router", "firewall", "switch", "vlan", "server", "cloud", "endpoint", "wifi", "isp", "noc", "siem", "shield", "lock", "dmz"],
+  software:   ["start", "function", "process", "decision", "module", "object", "state", "event", "output", "store", "class", "interface", "method", "api"],
+  code:       ["start", "function", "process", "decision", "module", "output", "store", "state", "object", "event", "input"],
+  data:       ["datasrc", "ingest", "transform", "model", "train", "validate", "output", "pipeline", "feature", "storage", "database", "cloud", "server"],
+  general:    ["start", "process", "decision", "input", "store", "output", "actor", "system", "note", "module", "event", "state"],
+};
+
+function getDomainForScenario(concept: string): string {
+  const lower = concept.toLowerCase();
+  const codeKw       = ["function", "call stack", "execution", "flowchart", "breakdown", "trace", "runtime", "pseudocode", "control flow", "loop", "iteration", "recursion", "def ", "main(", "return value", "stack frame", "scope"];
+  const dataKw       = ["data", "analytic", "pandas", "ml", "machine learning", "train", "model", "pipeline", "etl", "database", "sql", "dataset", "predict", "classif", "regression", "neural", "feature"];
+  const softwareKw   = ["class", "object", "api", "rest", "mvc", "interface", "module", "event", "state machine", "fsm", "algorithm", "software design", "oop", "uml", "microservice"];
+  const networkingKw = ["vlan", "router", "firewall", "switch", "isp", "wan", "noc", "siem", "hipaa", "network topology", "segmentation", "failover", "ospf", "dmz", "wifi", "compliance", "safeguard"];
+  // Code must be checked first — networking keywords are too broad and can false-match
+  if (codeKw.some((k) => lower.includes(k)))       return "code";
+  if (dataKw.some((k) => lower.includes(k)))        return "data";
+  if (softwareKw.some((k) => lower.includes(k)))   return "software";
+  if (networkingKw.some((k) => lower.includes(k))) return "networking";
+  return "general";
+}
 
 function detectScenario(concept: string): { components: string[]; hint: string } {
   const lower = concept.toLowerCase();
@@ -321,6 +361,8 @@ export default function DiagramBuilder({
   questionText,
   onCaptureSnapshot,
   role,
+  diagramState,
+  onDiagramStateChange,
 }: DiagramBuilderProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [nodes, setNodes] = useState<DiagramNode[]>([]);
@@ -360,7 +402,26 @@ export default function DiagramBuilder({
   useEffect(() => {
     setScenario(detectScenario(focusConcept));
     setEvaluation(null);
+    // Load saved diagram state for this question, or clear if none
+    if (diagramState) {
+      setNodes(diagramState.nodes);
+      setEdges(diagramState.edges);
+      setNextId(diagramState.nextId);
+    } else {
+      setNodes([]);
+      setEdges([]);
+      setNextId(1);
+    }
+    setSelectedNode(null);
+    setSelectedEdge(null);
   }, [questionIndex, focusConcept]);
+
+  // Emit state changes so parent can save per-question
+  useEffect(() => {
+    if (onDiagramStateChange) {
+      onDiagramStateChange({ nodes, edges, nextId });
+    }
+  }, [nodes, edges]);
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -913,7 +974,10 @@ Write feedback as 3 short check observations and 1-2 missing concept suggestions
 
   // ── Render UI ─────────────────────────────────────────────────────────────────
 
-  const paletteTypes = [...new Set([...scenario.components, ...ALL_COMPONENTS])];
+  const domain = getDomainForScenario(focusConcept);
+  const domainComponents = DOMAIN_COMPONENTS[domain] ?? DOMAIN_COMPONENTS.general;
+  // Scenario-specific components first, then the rest of the domain set, no duplicates
+  const paletteTypes = [...new Set([...scenario.components, ...domainComponents])];
 
   return (
     <div className="space-y-3">

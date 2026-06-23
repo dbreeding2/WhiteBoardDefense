@@ -16,6 +16,8 @@ interface DefenseSessionProps {
   onStrokesChange: (idx: number, strokes: DrawingStroke[]) => void;
   allDocs: string[];
   onDocChange: (idx: number, doc: string) => void;
+  allDiagrams: ({ nodes: any[]; edges: any[]; nextId: number } | null)[];
+  onDiagramChange: (idx: number, state: { nodes: any[]; edges: any[]; nextId: number }) => void;
   activeTab: "draw" | "text" | "diagram";
   onActiveTabChange: (tab: "draw" | "text" | "diagram") => void;
   onSaveSnapshot: (idx: number, b64: string) => void;
@@ -47,6 +49,8 @@ export default function DefenseSession({
   onStrokesChange,
   allDocs,
   onDocChange,
+  allDiagrams,
+  onDiagramChange,
   activeTab,
   onActiveTabChange,
   onSaveSnapshot,
@@ -299,9 +303,9 @@ export default function DefenseSession({
           <div className="flex border-b border-white/5 gap-0.5 select-none pt-1">
             {(
               [
-                { id: "draw",    label: "Drawing Board",   Icon: Palette },
-                { id: "text",    label: "Word Processor",  Icon: FileText },
                 { id: "diagram", label: "Diagram Board",   Icon: Network },
+                { id: "text",    label: "Word Processor",  Icon: FileText },
+                { id: "draw",    label: "Drawing Board",   Icon: Palette },
               ] as const
             ).map(({ id, label, Icon }) => (
               <button
@@ -354,6 +358,8 @@ export default function DefenseSession({
                 questionText={currentQuestion.questionText}
                 onCaptureSnapshot={(b64) => onSaveSnapshot(currentQuestionIndex, b64)}
                 role={role}
+                diagramState={allDiagrams[currentQuestionIndex] ?? null}
+                onDiagramStateChange={(state) => onDiagramChange(currentQuestionIndex, state)}
               />
             )}
           </div>

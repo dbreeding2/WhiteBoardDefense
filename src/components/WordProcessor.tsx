@@ -91,6 +91,28 @@ export default function WordProcessor({
     }
   }, [value]);
 
+  // Reset or restore when question changes
+  useEffect(() => {
+    if (value) {
+      // Restore saved state for this question
+      try {
+        const parsed = JSON.parse(value);
+        if (parsed.text !== undefined) {
+          setDocState(parsed);
+          return;
+        }
+      } catch (e) {
+        // fall through to default
+      }
+    }
+    // No saved state — reset to blank default
+    setDocState({
+      text: "",
+      hasTable: false,
+      table: { headers: [], rows: [] },
+    });
+  }, [questionIndex]);
+
   // Broadcast channel for same-machine tab sync
   const channelRef = useRef<BroadcastChannel | null>(null);
 

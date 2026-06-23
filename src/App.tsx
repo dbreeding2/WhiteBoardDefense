@@ -23,7 +23,8 @@ export default function App() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [allQuestionStrokes, setAllQuestionStrokes] = useState<DrawingStroke[][]>(Array(8).fill([]));
   const [allQuestionDocs, setAllQuestionDocs] = useState<string[]>(Array(8).fill(""));
-  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<'draw' | 'text' | 'diagram'>('draw');
+  const [allQuestionDiagrams, setAllQuestionDiagrams] = useState<({ nodes: any[]; edges: any[]; nextId: number } | null)[]>(Array(8).fill(null));
+  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<'draw' | 'text' | 'diagram'>('diagram');
   const [snapshots, setSnapshots] = useState<string[]>(Array(8).fill(""));
 
   // Follow-up chat and evaluation
@@ -306,6 +307,7 @@ export default function App() {
       setQuestions([]);
       setAllQuestionStrokes(Array(8).fill([]));
       setSnapshots(Array(8).fill(""));
+      setAllQuestionDiagrams(Array(8).fill(null));
       setChatHistory([]);
       setAssessment(null);
       setSessionId(generateSessionId());
@@ -447,6 +449,14 @@ export default function App() {
               setAllQuestionDocs((prev) => {
                 const copy = [...prev];
                 copy[idx] = doc;
+                return copy;
+              });
+            }}
+            allDiagrams={allQuestionDiagrams}
+            onDiagramChange={(idx, state) => {
+              setAllQuestionDiagrams((prev) => {
+                const copy = [...prev];
+                copy[idx] = state;
                 return copy;
               });
             }}

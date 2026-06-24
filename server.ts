@@ -478,6 +478,11 @@ app.post("/api/defense/chat", express.json({ limit: "50mb" }), async (req, res) 
     courseName, questions, pastedText, conclude, activityType,
   } = req.body;
 
+    // Count AI turns in history to enforce 4 follow-up question limit
+    const aiTurns = (chatHistory || []).filter((m: any) => m.role === "assistant").length;
+    const autoFinalize = aiTurns >= 4;
+    const shouldConclude = conclude || autoFinalize;
+
   const activityName = activityType || "Research Paper";
 
   try {
@@ -513,10 +518,17 @@ CRITICAL INTEGRITY DIRECTIVE:
 4. Reference whiteboard snapshots explicitly when discussing them (e.g. "On your drawing for Question 1...").
 Keep responses concise, focused, and academically professional.
 
-${conclude ? `
-CRITICAL DIRECTIVE: The instructor has clicked 'Finalize/Conclude Defense'.
+ORAL DEFENSE FORMAT — CRITICAL:
+This is a TEXT-ONLY oral examination phase. The student can only TYPE responses — they have NO drawing tools, diagram builder, or whiteboard available here.
+- NEVER ask the student to draw, sketch, diagram, create a flowchart, or provide any visual representation.
+- NEVER say "can you draw", "sketch", "diagram", "illustrate", "show visually", or any similar visual instruction.
+- Only ask questions that can be answered in writing — explain, describe, justify, compare, define, walk me through, what would happen if, etc.
+- If you want to probe visual understanding, ask them to DESCRIBE or EXPLAIN in words what they would draw, not to actually draw it.
+
+${shouldConclude ? `
+CRITICAL DIRECTIVE: ${autoFinalize ? "The defense has reached the maximum of 4 follow-up questions." : "The instructor has clicked 'Finalize/Conclude Defense'."} 
 Provide final closing feedback, then append a holistic assessment EXACTLY inside <assessment>...</assessment> tags.
-Customise the categories list to Submission Type "${activityName}":
+Customise the categories list to Submission Type "${activityType}":
 - Paper/Article: ["Technical Mastery","Whiteboard Synthesis","Integrity Verification"]
 - Project/Codebase: ["System Architecture","Software Implementation Logic","Integrity Verification"]
 - Presentation Slide Deck: ["Command of Slide Claims","Visual Diagrammatic Verification","Integrity Verification"]
@@ -524,15 +536,29 @@ Customise the categories list to Submission Type "${activityName}":
 
 JSON schema inside <assessment>:
 {
-  "overallScore": 82,
+  "overallScore": <integer 1-100, calculated honestly — do NOT use 82>,
   "suspicionLevel": "Low" | "Medium" | "High",
-  "suspicionReasoning": "...",
-  "categories": [{ "name": "...", "score": 8, "feedback": "..." }],
-  "keyFindings": ["..."],
-  "gapsIdentified": ["..."],
-  "recommendedGrade": "A-"
+  "suspicionReasoning": "<your reasoning>",
+  "categories": [{ "name": "<category name>", "score": <integer 1-10>, "feedback": "<specific feedback>" }],
+  "keyFindings": ["<specific strength observed>"],
+  "gapsIdentified": ["<specific gap observed>"],
+  "recommendedGrade": "<letter grade based on actual performance>"
 }
-` : "Ask the next challenging follow-up question targeting areas of ambiguity."}
+` : `Ask the next follow-up question. This is follow-up ${aiTurns + 1} of 4 maximum. Follow these rules STRICTLY:
+
+TOPIC DIVERSITY — CRITICAL:
+1. Review the full transcript. Identify which topics have already been probed. Do NOT ask another question on the same topic if it has already been covered once.
+2. Check the original 8 defense questions. Identify which ones had significant gaps or missing visual answers. Target those FIRST before anything else.
+3. Never ask a variation of a question already asked. Each follow-up must probe a genuinely different concept.
+4. Rotate through: technical implementation details, security architecture specifics, compliance requirements, troubleshooting scenarios, design trade-offs.
+5. Only return to process/training/communication topics if ALL technical and architectural gaps have been fully exhausted.
+
+PRIORITY ORDER:
+1. Questions where student gave no diagram when one was explicitly required
+2. Questions with vague or technically shallow answers
+3. New technical angles (specific protocols, CLI, failure scenarios, hardware specifics)
+4. Design trade-offs and alternative approaches
+5. Process and training topics ONLY as a last resort`}
 `;
 
     const base64Images: string[] = [];
@@ -543,9 +569,9 @@ JSON schema inside <assessment>:
     }
 
     const userText = `${systemPrompt}\n\nInterview transcript so far:\n${printedHistory}\n\nEvaluator's active prompt: ${
-      conclude
+      shouldConclude
         ? "Finalize the defense, summarize, and provide the assessment tags."
-        : "Evaluate the response, check whiteboard snapshots, and ask the next probing question."
+        : `Evaluate the response, check whiteboard snapshots, and ask follow-up question ${aiTurns + 1} of 4.`
     }`;
 
     const aiResponseText =

@@ -62,7 +62,7 @@ export default function DefenseSession({
   const [diagramSuggested, setDiagramSuggested] = useState(false);
   const currentQuestion = questions[currentQuestionIndex];
 
-  const shareUrl = `${window.location.origin}/?sessionId=${sessionId}&role=student`;
+  const shareUrl = `${import.meta.env.VITE_APP_URL || window.location.origin}/?sessionId=${sessionId}&role=student`;
 
   // Auto-suggest diagram tab when question changes to a topology/architecture concept
   useEffect(() => {
@@ -146,13 +146,13 @@ export default function DefenseSession({
               <Share2 className="w-3.5 h-3.5 text-indigo-400" /> Share Student Board
             </button>
           )}
-          {role !== "student" && (
+          {(role !== "student" || currentQuestionIndex === questions.length - 1) && (
             <button
               type="button"
               onClick={onProgressToChat}
               className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white p-2.5 px-5 rounded-xl text-xs font-bold shadow-md transition hover:scale-105 active:scale-95"
             >
-              Proceed to AI Probing Chat <Award className="w-3.5 h-3.5" />
+              {role === "student" ? "Submit & Proceed to Oral Defense" : "Proceed to AI Probing Chat"} <Award className="w-3.5 h-3.5" />
             </button>
           )}
         </div>
@@ -354,7 +354,7 @@ export default function DefenseSession({
             {activeTab === "diagram" && (
               <DiagramBuilder
                 questionIndex={currentQuestionIndex}
-                focusConcept={currentQuestion.focusConcept}
+                focusConcept={`${currentQuestion.focusConcept} ${currentQuestion.questionText}`}
                 questionText={currentQuestion.questionText}
                 onCaptureSnapshot={(b64) => onSaveSnapshot(currentQuestionIndex, b64)}
                 role={role}
@@ -369,7 +369,7 @@ export default function DefenseSession({
             <button
               type="button"
               onClick={() => changeSlide(currentQuestionIndex - 1)}
-              disabled={currentQuestionIndex === 0 || role === "student"}
+              disabled={currentQuestionIndex === 0}
               className="flex items-center gap-1 border border-white/10 hover:bg-white/5 text-white font-semibold text-xs rounded-xl p-2 px-4 disabled:opacity-40 transition"
             >
               <ChevronLeft className="w-3.5 h-3.5" /> Previous Question
@@ -380,7 +380,7 @@ export default function DefenseSession({
             <button
               type="button"
               onClick={() => changeSlide(currentQuestionIndex + 1)}
-              disabled={currentQuestionIndex === questions.length - 1 || role === "student"}
+              disabled={currentQuestionIndex === questions.length - 1}
               className="flex items-center gap-1 border border-white/10 hover:bg-white/5 text-white font-semibold text-xs rounded-xl p-2 px-4 disabled:opacity-40 transition"
             >
               Next Question <ChevronRight className="w-3.5 h-3.5" />

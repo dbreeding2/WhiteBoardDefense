@@ -40,7 +40,7 @@ export default function FollowUpChat({
   const [isListening, setIsListening] = useState(false);
   const [sendAs, setSendAs] = useState<'student' | 'instructor'>(role === "instructor" ? "instructor" : "student");
   const [studentTurnCount, setStudentTurnCount] = useState(0);
-  const MAX_TURNS = 16; // 2 follow-ups per question × 8 questions
+  const MAX_TURNS = 6; // max follow-up exchanges in oral defense phase
   
   // Grading scorecard states for Instructor
   const [showGradingPanel, setShowGradingPanel] = useState(false);

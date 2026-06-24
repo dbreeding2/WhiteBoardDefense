@@ -372,6 +372,7 @@ export default function DiagramBuilder({
   const [selectedEdge, setSelectedEdge] = useState<DiagramEdge | null>(null);
   const [hoverNodeId, setHoverNodeId] = useState<number | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(true);
+  const [domainOverride, setDomainOverride] = useState<string | null>(null);
   const [evaluating, setEvaluating] = useState(false);
   const [evaluation, setEvaluation] = useState<DiagramEvaluation | null>(null);
   const [scenario, setScenario] = useState<{ components: string[]; hint: string }>(
@@ -915,10 +916,9 @@ export default function DiagramBuilder({
     ];
 
     const passing = checks.filter((c) => c.pass).length;
-    const baseScore = passing === 3 ? 9 : passing === 2 ? 7 : passing === 1 ? 5 : 3;
-    // Bonus point for exceptional detail (roles + edge labels + many nodes)
-    const bonus = (passing === 3 && hasRoles && hasEdgeLabels && nodes.length >= 6) ? 1 : 0;
-    const overallScore = Math.min(10, baseScore + bonus);
+    const isEmpty = nodes.length === 0 && edges.length === 0;
+    const baseScore = isEmpty ? 0 : passing === 3 ? 10 : passing === 2 ? 7 : passing === 1 ? 5 : 3;
+    const overallScore = baseScore;
 
     // ── AI used only for qualitative feedback, not scoring ────────────────
     const prompt = `You are giving brief feedback on a student's diagram during a whiteboard defense. Do NOT score or grade — scoring has already been handled separately.
@@ -974,10 +974,13 @@ Write feedback as 3 short check observations and 1-2 missing concept suggestions
 
   // ── Render UI ─────────────────────────────────────────────────────────────────
 
-  const domain = getDomainForScenario(focusConcept);
+  const domain = domainOverride ?? getDomainForScenario(focusConcept);
   const domainComponents = DOMAIN_COMPONENTS[domain] ?? DOMAIN_COMPONENTS.general;
   // Scenario-specific components first, then the rest of the domain set, no duplicates
-  const paletteTypes = [...new Set([...scenario.components, ...domainComponents])];
+  // When domain is overridden by instructor, skip scenario components to show clean domain set
+  const paletteTypes = domainOverride
+    ? [...new Set([...domainComponents])]
+    : [...new Set([...scenario.components, ...domainComponents])];
 
   return (
     <div className="space-y-3">
@@ -992,14 +995,31 @@ Write feedback as 3 short check observations and 1-2 missing concept suggestions
 
       {/* Palette */}
       <div className="bg-[#0d0d11] border border-white/5 rounded-xl p-3">
-        <button
-          type="button"
-          onClick={() => setPaletteOpen(!paletteOpen)}
-          className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-white/40 hover:text-white/60 transition w-full"
-        >
-          Component palette — drag onto canvas
-          <ChevronDown className={`w-3 h-3 ml-auto transition-transform ${paletteOpen ? "rotate-180" : ""}`} />
-        </button>
+        <div className="flex items-center gap-3 w-full">
+          <button
+            type="button"
+            onClick={() => setPaletteOpen(!paletteOpen)}
+            className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-white/40 hover:text-white/60 transition flex-1"
+          >
+            Component palette — drag onto canvas
+            <ChevronDown className={`w-3 h-3 transition-transform ${paletteOpen ? "rotate-180" : ""}`} />
+          </button>
+          {(role === "instructor" || role === "both") && (
+            <select
+              value={domainOverride ?? ""}
+              onChange={(e) => setDomainOverride(e.target.value || null)}
+              className="text-[10px] font-mono uppercase bg-[#111] border border-white/10 text-white/50 rounded px-2 py-1 cursor-pointer hover:border-white/20 transition"
+              title="Override component palette domain"
+            >
+              <option value="">Auto-detect</option>
+              <option value="networking">Networking</option>
+              <option value="software">Software</option>
+              <option value="code">Code / Flowchart</option>
+              <option value="data">Data / ML</option>
+              <option value="general">General</option>
+            </select>
+          )}
+        </div>
         <div className={`flex flex-wrap gap-1.5 transition-all overflow-hidden ${paletteOpen ? "mt-3 max-h-96" : "mt-2 max-h-12"}`}>
           {paletteTypes.map((type) => {
             const d = DEFS[type];
@@ -1161,7 +1181,8 @@ Write feedback as 3 short check observations and 1-2 missing concept suggestions
           <div className="flex items-center gap-3">
             <span className="text-xs font-bold text-white/60 uppercase tracking-widest font-mono">Diagram evaluation</span>
             <span className={`ml-auto px-2.5 py-0.5 rounded-full text-xs font-bold font-mono ${
-              evaluation.overallScore >= 8 ? "bg-emerald-950/40 text-emerald-400 border border-emerald-900/50"
+              evaluation.overallScore === 10 ? "bg-emerald-950/40 text-emerald-300 border border-emerald-700/50"
+              : evaluation.overallScore >= 8 ? "bg-emerald-950/40 text-emerald-400 border border-emerald-900/50"
               : evaluation.overallScore >= 7 ? "bg-indigo-950/40 text-indigo-400 border border-indigo-900/50"
               : evaluation.overallScore >= 5 ? "bg-amber-950/40 text-amber-400 border border-amber-900/50"
               : "bg-red-950/40 text-red-400 border border-red-900/50"

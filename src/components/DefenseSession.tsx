@@ -62,7 +62,7 @@ export default function DefenseSession({
   const [diagramSuggested, setDiagramSuggested] = useState(false);
   const currentQuestion = questions[currentQuestionIndex];
 
-  const shareUrl = `${import.meta.env.VITE_APP_URL || window.location.origin}/?sessionId=${sessionId}&role=student`;
+  const shareUrl = `${window.location.origin}/?sessionId=${sessionId}&role=student`;
 
   // Auto-suggest diagram tab when question changes to a topology/architecture concept
   useEffect(() => {

@@ -43,7 +43,7 @@ function duration(ts: number): string {
   return `${Math.floor(mins / 60)}h ${mins % 60}m`;
 }
 
-export default function InstructorDashboard({ wsRef, appUrl, onNewSession }: InstructorDashboardProps) {
+export default function InstructorDashboard({ wsRef, onNewSession }: InstructorDashboardProps) {
   const [sessions, setSessions] = useState<SessionMeta[]>([]);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
@@ -82,7 +82,7 @@ export default function InstructorDashboard({ wsRef, appUrl, onNewSession }: Ins
   }, []);
 
   const copyLink = (sessionId: string) => {
-    const url = `${appUrl}/?sessionId=${sessionId}&role=student`;
+    const url = `${window.location.origin}/?sessionId=${sessionId}&role=student`;
     navigator.clipboard.writeText(url).then(() => {
       setCopiedId(sessionId);
       setTimeout(() => setCopiedId(null), 2000);
@@ -90,7 +90,7 @@ export default function InstructorDashboard({ wsRef, appUrl, onNewSession }: Ins
   };
 
   const openSession = (sessionId: string) => {
-    window.open(`/?sessionId=${sessionId}&role=instructor`, "_blank");
+    window.open(`${window.location.origin}/?sessionId=${sessionId}&role=instructor`, "_blank");
   };
 
   const activeSessions = sessions.filter(s => s.stage !== "complete");
@@ -274,7 +274,7 @@ export default function InstructorDashboard({ wsRef, appUrl, onNewSession }: Ins
       <div className="mt-8 p-4 bg-white/3 border border-white/8 rounded-xl">
         <p className="text-white/30 text-xs">
           <span className="text-white/50 font-semibold">Dashboard URL:</span>{" "}
-          <span className="font-mono">{appUrl}/?dashboard=true</span>
+          <span className="font-mono">{window.location.origin}/?dashboard=true</span>
           {" "}· Bookmark this to return directly to the dashboard.
         </p>
       </div>

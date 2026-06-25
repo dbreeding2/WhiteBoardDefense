@@ -449,7 +449,6 @@ export default function App() {
         {currentStage === 'dashboard' && (
           <InstructorDashboard
             wsRef={wsRef}
-            appUrl={import.meta.env.VITE_APP_URL || window.location.origin}
             onNewSession={() => { setCurrentStage('setup'); }}
           />
         )}

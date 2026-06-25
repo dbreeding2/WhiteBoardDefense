@@ -2,20 +2,35 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import {defineConfig} from 'vite';
+import fs from 'fs';
+
+// Read .env manually to bypass dotenvx interception
+function readEnvFile(): Record<string, string> {
+  try {
+    const content = fs.readFileSync('.env', 'utf8').replace(/^\uFEFF/, '');
+    const vars: Record<string, string> = {};
+    content.split('\n').forEach(line => {
+      const match = line.match(/^([^=]+)=(.*)$/);
+      if (match) vars[match[1].trim()] = match[2].trim();
+    });
+    return vars;
+  } catch { return {}; }
+}
 
 export default defineConfig(() => {
+  const env = readEnvFile();
   return {
     plugins: [react(), tailwindcss()],
+    define: {
+      'import.meta.env.VITE_APP_URL': JSON.stringify(env.VITE_APP_URL || ''),
+    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
       },
     },
     server: {
-      // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',
-      // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
     },
   };

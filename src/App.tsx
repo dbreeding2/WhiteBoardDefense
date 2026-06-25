@@ -5,10 +5,11 @@ import ReviewQuestions from "./components/ReviewQuestions";
 import DefenseSession from "./components/DefenseSession";
 import FollowUpChat from "./components/FollowUpChat";
 import ReportViewer from "./components/ReportViewer";
+import InstructorDashboard from "./components/InstructorDashboard";
 import { FileEdit, Sparkles, Monitor, AppWindow, UserCheck, ShieldAlert } from "lucide-react";
 
 export default function App() {
-  const [currentStage, setCurrentStage] = useState<'setup' | 'review' | 'session' | 'followup' | 'report'>('setup');
+  const [currentStage, setCurrentStage] = useState<'dashboard' | 'setup' | 'review' | 'session' | 'followup' | 'report'>('setup');
   
   // Student Metadata
   const [studentName, setStudentName] = useState("");
@@ -44,6 +45,25 @@ export default function App() {
   // WebSocket reference
   const wsRef = useRef<WebSocket | null>(null);
 
+  // Broadcast session metadata to dashboard
+  const broadcastMeta = (overrides: Record<string, any> = {}) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({
+        type: "session_meta_update",
+        sessionId,
+        meta: {
+          studentName,
+          paperTitle,
+          courseCode,
+          currentQuestion: currentQuestionIndex,
+          totalQuestions: questions.length || 8,
+          stage: currentStage,
+          ...overrides,
+        },
+      }));
+    }
+  };
+
   // Generate unique session ID
   const generateSessionId = () => {
     return Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -54,6 +74,12 @@ export default function App() {
     const queryParams = new URLSearchParams(window.location.search);
     const urlSessionId = queryParams.get("sessionId");
     const urlRole = queryParams.get("role") as 'student' | 'instructor' | 'both' | null;
+    const isDashboard = queryParams.get("dashboard") === "true";
+
+    if (isDashboard) {
+      setCurrentStage('dashboard');
+      return;
+    }
 
     if (urlSessionId) {
       setSessionId(urlSessionId);
@@ -77,6 +103,11 @@ export default function App() {
       setSessionId(generateSessionId());
     }
   }, []);
+
+  // Broadcast metadata when stage or question changes
+  useEffect(() => {
+    broadcastMeta();
+  }, [currentStage, currentQuestionIndex]);
 
   // Establish WebSocket sync channel
   useEffect(() => {
@@ -355,6 +386,17 @@ export default function App() {
               </>
             )}
             <div className="h-10 w-[1px] bg-white/10"></div>
+
+            {/* Dashboard button */}
+            <button
+              onClick={() => setCurrentStage('dashboard')}
+              className="flex items-center gap-1.5 bg-white/5 border border-white/10 hover:bg-indigo-500/10 hover:border-indigo-500/30 text-white/60 hover:text-indigo-400 px-3 py-1.5 rounded-lg text-[11px] font-mono uppercase tracking-wider transition"
+              title="Instructor Dashboard — manage all active sessions"
+            >
+              <Monitor className="w-3.5 h-3.5" /> Dashboard
+            </button>
+            
+            <div className="h-10 w-[1px] bg-white/10"></div>
             
             {/* Context Workspace Role Selector */}
             <div className="flex items-center bg-white/5 p-1 border border-white/10 rounded-lg text-xs">
@@ -404,6 +446,13 @@ export default function App() {
       <main className="flex-1 max-w-7xl w-full mx-auto p-6 md:p-8">
         
         {/* Dynamic stage route router mapping */}
+        {currentStage === 'dashboard' && (
+          <InstructorDashboard
+            wsRef={wsRef}
+            appUrl={import.meta.env.VITE_APP_URL || window.location.origin}
+            onNewSession={() => { setCurrentStage('setup'); }}
+          />
+        )}
         {currentStage === 'setup' && (
           <SetupForm 
             onSetupComplete={handleSetupComplete} 

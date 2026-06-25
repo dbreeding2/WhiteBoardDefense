@@ -195,14 +195,54 @@ function parseJsonResponse<T>(raw: string): T {
 const wss = new WebSocketServer({ noServer: true });
 const sessions = new Map<string, Set<{ ws: WebSocket; role: "student" | "instructor" }>>();
 
+// ─── Session registry for dashboard ──────────────────────────────────────────
+interface SessionMeta {
+  sessionId: string;
+  studentName: string;
+  paperTitle: string;
+  courseCode: string;
+  currentQuestion: number;
+  totalQuestions: number;
+  stage: "setup" | "session" | "followup" | "report" | "complete";
+  startedAt: number;
+  lastActivity: number;
+  thumbnail: string; // base64 snapshot of latest diagram
+}
+const sessionRegistry = new Map<string, SessionMeta>();
+const dashboardClients = new Set<WebSocket>();
+
+function broadcastDashboard() {
+  const payload = JSON.stringify({
+    type: "dashboard_update",
+    sessions: Array.from(sessionRegistry.values()),
+  });
+  for (const client of dashboardClients) {
+    if (client.readyState === WebSocket.OPEN) client.send(payload);
+  }
+}
+
 wss.on("connection", (ws: WebSocket) => {
   let joinedSessionId: string | null = null;
   let clientRole: "student" | "instructor" | null = null;
+  let isDashboard = false;
 
   ws.on("message", (message: string) => {
     try {
       const payload = JSON.parse(message);
       const { type, sessionId, role } = payload;
+
+      // ── Dashboard client ────────────────────────────────────────────────────
+      if (type === "dashboard_join") {
+        isDashboard = true;
+        dashboardClients.add(ws);
+        ws.send(JSON.stringify({
+          type: "dashboard_update",
+          sessions: Array.from(sessionRegistry.values()),
+        }));
+        return;
+      }
+
+      // ── Session join ────────────────────────────────────────────────────────
       if (type === "join") {
         joinedSessionId = sessionId;
         clientRole = role;
@@ -215,6 +255,41 @@ wss.on("connection", (ws: WebSocket) => {
         });
         return;
       }
+
+      // ── Session metadata update (from App.tsx) ─────────────────────────────
+      if (type === "session_meta_update" && sessionId) {
+        const existing = sessionRegistry.get(sessionId) || {
+          sessionId,
+          studentName: "",
+          paperTitle: "",
+          courseCode: "",
+          currentQuestion: 0,
+          totalQuestions: 8,
+          stage: "session",
+          startedAt: Date.now(),
+          lastActivity: Date.now(),
+          thumbnail: "",
+        };
+        sessionRegistry.set(sessionId, {
+          ...existing,
+          ...payload.meta,
+          lastActivity: Date.now(),
+        });
+        broadcastDashboard();
+        return;
+      }
+
+      // ── Snapshot thumbnail update ──────────────────────────────────────────
+      if (type === "snapshot_update" && sessionId) {
+        const existing = sessionRegistry.get(sessionId);
+        if (existing) {
+          existing.thumbnail = payload.thumbnail || "";
+          existing.lastActivity = Date.now();
+          broadcastDashboard();
+        }
+        return;
+      }
+
       if (sessionId && type) broadcastToSession(sessionId, ws, payload);
     } catch (err) {
       console.error("Error matching WS payload:", err);
@@ -222,6 +297,7 @@ wss.on("connection", (ws: WebSocket) => {
   });
 
   ws.on("close", () => {
+    if (isDashboard) { dashboardClients.delete(ws); return; }
     if (joinedSessionId && sessions.has(joinedSessionId)) {
       const set = sessions.get(joinedSessionId)!;
       for (const client of set) {
@@ -229,6 +305,17 @@ wss.on("connection", (ws: WebSocket) => {
       }
       if (set.size === 0) {
         sessions.delete(joinedSessionId);
+        const meta = sessionRegistry.get(joinedSessionId);
+        if (meta) {
+          meta.stage = "complete";
+          sessionRegistry.set(joinedSessionId, meta);
+          broadcastDashboard();
+          // Remove from registry after 30 minutes
+          setTimeout(() => {
+            sessionRegistry.delete(joinedSessionId!);
+            broadcastDashboard();
+          }, 30 * 60 * 1000);
+        }
       } else {
         broadcastToSession(joinedSessionId, null, {
           type: "system_message",

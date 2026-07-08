@@ -16,8 +16,6 @@ interface DefenseSessionProps {
   onStrokesChange: (idx: number, strokes: DrawingStroke[]) => void;
   allDocs: string[];
   onDocChange: (idx: number, doc: string) => void;
-  allDiagrams: ({ nodes: any[]; edges: any[]; nextId: number } | null)[];
-  onDiagramChange: (idx: number, state: { nodes: any[]; edges: any[]; nextId: number }) => void;
   activeTab: "draw" | "text" | "diagram";
   onActiveTabChange: (tab: "draw" | "text" | "diagram") => void;
   onSaveSnapshot: (idx: number, b64: string) => void;
@@ -49,8 +47,6 @@ export default function DefenseSession({
   onStrokesChange,
   allDocs,
   onDocChange,
-  allDiagrams,
-  onDiagramChange,
   activeTab,
   onActiveTabChange,
   onSaveSnapshot,
@@ -146,13 +142,13 @@ export default function DefenseSession({
               <Share2 className="w-3.5 h-3.5 text-indigo-400" /> Share Student Board
             </button>
           )}
-          {(role !== "student" || currentQuestionIndex === questions.length - 1) && (
+          {role !== "student" && (
             <button
               type="button"
               onClick={onProgressToChat}
               className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white p-2.5 px-5 rounded-xl text-xs font-bold shadow-md transition hover:scale-105 active:scale-95"
             >
-              {role === "student" ? "Submit & Proceed to Oral Defense" : "Proceed to AI Probing Chat"} <Award className="w-3.5 h-3.5" />
+              Proceed to AI Probing Chat <Award className="w-3.5 h-3.5" />
             </button>
           )}
         </div>
@@ -354,12 +350,11 @@ export default function DefenseSession({
             {activeTab === "diagram" && (
               <DiagramBuilder
                 questionIndex={currentQuestionIndex}
-                focusConcept={`${currentQuestion.focusConcept} ${currentQuestion.questionText}`}
+                focusConcept={currentQuestion.focusConcept}
                 questionText={currentQuestion.questionText}
                 onCaptureSnapshot={(b64) => onSaveSnapshot(currentQuestionIndex, b64)}
                 role={role}
-                diagramState={allDiagrams[currentQuestionIndex] ?? null}
-                onDiagramStateChange={(state) => onDiagramChange(currentQuestionIndex, state)}
+                isVisible={activeTab === "diagram"}
               />
             )}
           </div>
@@ -369,7 +364,7 @@ export default function DefenseSession({
             <button
               type="button"
               onClick={() => changeSlide(currentQuestionIndex - 1)}
-              disabled={currentQuestionIndex === 0}
+              disabled={currentQuestionIndex === 0 || role === "student"}
               className="flex items-center gap-1 border border-white/10 hover:bg-white/5 text-white font-semibold text-xs rounded-xl p-2 px-4 disabled:opacity-40 transition"
             >
               <ChevronLeft className="w-3.5 h-3.5" /> Previous Question
@@ -380,7 +375,7 @@ export default function DefenseSession({
             <button
               type="button"
               onClick={() => changeSlide(currentQuestionIndex + 1)}
-              disabled={currentQuestionIndex === questions.length - 1}
+              disabled={currentQuestionIndex === questions.length - 1 || role === "student"}
               className="flex items-center gap-1 border border-white/10 hover:bg-white/5 text-white font-semibold text-xs rounded-xl p-2 px-4 disabled:opacity-40 transition"
             >
               Next Question <ChevronRight className="w-3.5 h-3.5" />

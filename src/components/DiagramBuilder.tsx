@@ -458,7 +458,13 @@ export default function DiagramBuilder({
 
     const getXY = (e: MouseEvent) => {
       const r = canvas.getBoundingClientRect();
-      return { x: e.clientX - r.left, y: e.clientY - r.top };
+      // Scale mouse coords from display size to canvas internal size
+      const scaleX = canvas.width / r.width;
+      const scaleY = canvas.height / r.height;
+      return {
+        x: (e.clientX - r.left) * scaleX,
+        y: (e.clientY - r.top) * scaleY,
+      };
     };
 
     const onMouseMove = (e: MouseEvent) => {
@@ -569,8 +575,11 @@ export default function DiagramBuilder({
     e.preventDefault();
     const type = paletteDragTypeRef.current || e.dataTransfer.getData("text/plain");
     if (!type || !DEFS[type]) return;
-    const r = canvasRef.current!.getBoundingClientRect();
-    addNode(type, e.clientX - r.left, e.clientY - r.top);
+    const canvas = canvasRef.current!;
+    const r = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / r.width;
+    const scaleY = canvas.height / r.height;
+    addNode(type, (e.clientX - r.left) * scaleX, (e.clientY - r.top) * scaleY);
     paletteDragTypeRef.current = null;
   };
 
@@ -640,27 +649,34 @@ export default function DiagramBuilder({
         : "";
     }).filter(Boolean).join(", ");
 
-    const prompt = `You are evaluating a student's network diagram during a whiteboard defense for a cybersecurity/networking course.
+    const prompt = `You are evaluating a student's network diagram during a whiteboard defense. Your job is to assess ONLY what is explicitly visible in the diagram data provided — do NOT penalize for concepts that cannot be shown in a node-and-edge diagram.
 
 Defense question concept: "${focusConcept}"
 Full question: "${questionText}"
-Scenario hint: ${scenario.hint}
 
 Student's diagram:
 Nodes (${nodes.length}): ${nodeList || "(none)"}
 Links (${edges.length}): ${edgeList || "(none)"}
 
-Evaluate on exactly three criteria specific to this question, and respond ONLY with valid JSON, no markdown fences:
+EVALUATION RULES:
+1. Base ALL criteria on what is structurally present in the node/edge data above.
+2. Do NOT create criteria requiring text annotations or written explanations — this is a diagram, not an essay.
+3. Do NOT fail a criterion because a concept "could be more explicitly stated" — if the structure implies it, mark it pass.
+4. Criteria should be: topology correctness, component completeness, and connection logic — not conceptual depth.
+5. If the diagram has 8+ nodes and 6+ connections with meaningful labels, the score should be 8 or higher.
+6. Only flag integritySignal as "medium" or "high" if the layout looks copy-pasted or random with no logical flow.
+
+Respond ONLY with valid JSON, no markdown fences:
 {
   "overallScore": <integer 1-10>,
   "checks": [
-    {"label": "short criterion", "pass": true|false, "note": "one specific sentence"},
-    {"label": "short criterion", "pass": true|false, "note": "one specific sentence"},
-    {"label": "short criterion", "pass": true|false, "note": "one specific sentence"}
+    {"label": "short criterion", "pass": true|false, "note": "one specific sentence referencing actual nodes/links"},
+    {"label": "short criterion", "pass": true|false, "note": "one specific sentence referencing actual nodes/links"},
+    {"label": "short criterion", "pass": true|false, "note": "one specific sentence referencing actual nodes/links"}
   ],
-  "missingConcepts": ["concept1", "concept2"],
+  "missingConcepts": ["only list if a structurally required component is completely absent from the diagram"],
   "integritySignal": "low|medium|high",
-  "integrityNote": "one sentence on whether placement and labeling suggest genuine understanding vs guessing"
+  "integrityNote": "one sentence on whether the topology layout suggests genuine understanding of the architecture"
 }`;
 
     try {

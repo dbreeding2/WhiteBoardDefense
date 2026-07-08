@@ -5,11 +5,10 @@ import ReviewQuestions from "./components/ReviewQuestions";
 import DefenseSession from "./components/DefenseSession";
 import FollowUpChat from "./components/FollowUpChat";
 import ReportViewer from "./components/ReportViewer";
-import InstructorDashboard from "./components/InstructorDashboard";
 import { FileEdit, Sparkles, Monitor, AppWindow, UserCheck, ShieldAlert } from "lucide-react";
 
 export default function App() {
-  const [currentStage, setCurrentStage] = useState<'dashboard' | 'setup' | 'review' | 'session' | 'followup' | 'report'>('setup');
+  const [currentStage, setCurrentStage] = useState<'setup' | 'review' | 'session' | 'followup' | 'report'>('setup');
   
   // Student Metadata
   const [studentName, setStudentName] = useState("");
@@ -24,8 +23,7 @@ export default function App() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [allQuestionStrokes, setAllQuestionStrokes] = useState<DrawingStroke[][]>(Array(8).fill([]));
   const [allQuestionDocs, setAllQuestionDocs] = useState<string[]>(Array(8).fill(""));
-  const [allQuestionDiagrams, setAllQuestionDiagrams] = useState<({ nodes: any[]; edges: any[]; nextId: number } | null)[]>(Array(8).fill(null));
-  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<'draw' | 'text' | 'diagram'>('diagram');
+  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<'draw' | 'text' | 'diagram'>('draw');
   const [snapshots, setSnapshots] = useState<string[]>(Array(8).fill(""));
 
   // Follow-up chat and evaluation
@@ -45,25 +43,6 @@ export default function App() {
   // WebSocket reference
   const wsRef = useRef<WebSocket | null>(null);
 
-  // Broadcast session metadata to dashboard
-  const broadcastMeta = (overrides: Record<string, any> = {}) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({
-        type: "session_meta_update",
-        sessionId,
-        meta: {
-          studentName,
-          paperTitle,
-          courseCode,
-          currentQuestion: currentQuestionIndex,
-          totalQuestions: questions.length || 8,
-          stage: currentStage,
-          ...overrides,
-        },
-      }));
-    }
-  };
-
   // Generate unique session ID
   const generateSessionId = () => {
     return Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -74,12 +53,6 @@ export default function App() {
     const queryParams = new URLSearchParams(window.location.search);
     const urlSessionId = queryParams.get("sessionId");
     const urlRole = queryParams.get("role") as 'student' | 'instructor' | 'both' | null;
-    const isDashboard = queryParams.get("dashboard") === "true";
-
-    if (isDashboard) {
-      setCurrentStage('dashboard');
-      return;
-    }
 
     if (urlSessionId) {
       setSessionId(urlSessionId);
@@ -103,11 +76,6 @@ export default function App() {
       setSessionId(generateSessionId());
     }
   }, []);
-
-  // Broadcast metadata when stage or question changes
-  useEffect(() => {
-    broadcastMeta();
-  }, [currentStage, currentQuestionIndex]);
 
   // Establish WebSocket sync channel
   useEffect(() => {
@@ -136,6 +104,22 @@ export default function App() {
 
         if (type === "system_message") {
           console.log("WebSocket Sync Broadcast:", data);
+          // If a student just joined and we're the instructor already in session, re-send questions
+          if (
+            payload.text?.includes("Student joined") &&
+            role !== "student" &&
+            questions.length > 0 &&
+            wsRef.current?.readyState === WebSocket.OPEN
+          ) {
+            setTimeout(() => {
+              wsRef.current!.send(JSON.stringify({
+                type: "sync_questions",
+                sessionId,
+                role,
+                data: { questions, studentName, paperTitle, courseName },
+              }));
+            }, 800);
+          }
         } else if (type === "slide_change") {
           setCurrentQuestionIndex(data.idx);
         } else if (type === "sync_whiteboard") {
@@ -162,6 +146,12 @@ export default function App() {
         } else if (type === "assessment_finalized") {
           setAssessment(data.assessment);
           setCurrentStage("report");
+        } else if (type === "sync_questions") {
+          // Instructor is broadcasting the real questions — replace fallbacks
+          setQuestions(data.questions);
+          if (data.studentName) setStudentName(data.studentName);
+          if (data.paperTitle)  setPaperTitle(data.paperTitle);
+          if (data.courseName)  setCourseName(data.courseName);
         }
       } catch (err) {
         console.error("Error parsing sync packet:", err);
@@ -319,6 +309,24 @@ export default function App() {
   const handleReviewConfirmed = (confirmedQuestions: DefenseQuestion[]) => {
     setQuestions(confirmedQuestions);
     setCurrentStage('session');
+
+    // Broadcast real questions to any student already waiting in the session room
+    // Small delay to ensure the WebSocket is in the session stage before sending
+    setTimeout(() => {
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({
+          type: "sync_questions",
+          sessionId,
+          role,
+          data: {
+            questions: confirmedQuestions,
+            studentName,
+            paperTitle,
+            courseName,
+          },
+        }));
+      }
+    }, 500);
   };
 
   const handleSaveSnapshot = (idx: number, b64: string) => {
@@ -338,7 +346,6 @@ export default function App() {
       setQuestions([]);
       setAllQuestionStrokes(Array(8).fill([]));
       setSnapshots(Array(8).fill(""));
-      setAllQuestionDiagrams(Array(8).fill(null));
       setChatHistory([]);
       setAssessment(null);
       setSessionId(generateSessionId());
@@ -385,17 +392,6 @@ export default function App() {
                 </div>
               </>
             )}
-            <div className="h-10 w-[1px] bg-white/10"></div>
-
-            {/* Dashboard button */}
-            <button
-              onClick={() => setCurrentStage('dashboard')}
-              className="flex items-center gap-1.5 bg-white/5 border border-white/10 hover:bg-indigo-500/10 hover:border-indigo-500/30 text-white/60 hover:text-indigo-400 px-3 py-1.5 rounded-lg text-[11px] font-mono uppercase tracking-wider transition"
-              title="Instructor Dashboard — manage all active sessions"
-            >
-              <Monitor className="w-3.5 h-3.5" /> Dashboard
-            </button>
-            
             <div className="h-10 w-[1px] bg-white/10"></div>
             
             {/* Context Workspace Role Selector */}
@@ -446,12 +442,6 @@ export default function App() {
       <main className="flex-1 max-w-7xl w-full mx-auto p-6 md:p-8">
         
         {/* Dynamic stage route router mapping */}
-        {currentStage === 'dashboard' && (
-          <InstructorDashboard
-            wsRef={wsRef}
-            onNewSession={() => { setCurrentStage('setup'); }}
-          />
-        )}
         {currentStage === 'setup' && (
           <SetupForm 
             onSetupComplete={handleSetupComplete} 
@@ -497,14 +487,6 @@ export default function App() {
               setAllQuestionDocs((prev) => {
                 const copy = [...prev];
                 copy[idx] = doc;
-                return copy;
-              });
-            }}
-            allDiagrams={allQuestionDiagrams}
-            onDiagramChange={(idx, state) => {
-              setAllQuestionDiagrams((prev) => {
-                const copy = [...prev];
-                copy[idx] = state;
                 return copy;
               });
             }}

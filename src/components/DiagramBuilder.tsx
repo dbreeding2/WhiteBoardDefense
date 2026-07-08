@@ -45,12 +45,11 @@ interface DiagramEvaluation {
 
 interface DiagramBuilderProps {
   questionIndex: number;
-  focusConcept: string;
-  questionText: string;
+  focusConcept: string;       // from DefenseQuestion.focusConcept
+  questionText: string;       // from DefenseQuestion.questionText
   onCaptureSnapshot: (b64: string) => void;
   role: "student" | "instructor" | "both";
-  diagramState?: { nodes: DiagramNode[]; edges: DiagramEdge[]; nextId: number } | null;
-  onDiagramStateChange?: (state: { nodes: DiagramNode[]; edges: DiagramEdge[]; nextId: number }) => void;
+  isVisible: boolean;         // true when the diagram tab is active
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -62,7 +61,6 @@ const HANDLE_R = 7;
 const HANDLE_HIT = 14;
 
 const DEFS: Record<string, NodeDef> = {
-  // ── Networking / Security ──────────────────────────────────────────────────
   router:   { icon: "⇄",  label: "Router",      color: "#818CF8", fill: "#1e1b4b", stroke: "#4338ca" },
   firewall: { icon: "🛡",  label: "Firewall",    color: "#f87171", fill: "#450a0a", stroke: "#991b1b" },
   switch:   { icon: "⊕",  label: "Switch",      color: "#a78bfa", fill: "#2e1065", stroke: "#6d28d9" },
@@ -77,39 +75,6 @@ const DEFS: Record<string, NodeDef> = {
   shield:   { icon: "⛨",  label: "Safeguard",   color: "#fb923c", fill: "#431407", stroke: "#c2410c" },
   lock:     { icon: "🔒", label: "Access Ctrl", color: "#a78bfa", fill: "#1e1b4b", stroke: "#7c3aed" },
   dmz:      { icon: "⬠",  label: "DMZ",         color: "#f472b6", fill: "#2d0a1f", stroke: "#9d174d" },
-  // ── Software / SDC ────────────────────────────────────────────────────────
-  class:    { icon: "◻",  label: "Class",       color: "#818CF8", fill: "#1e1b4b", stroke: "#4338ca" },
-  interface:{ icon: "⟨⟩", label: "Interface",   color: "#a78bfa", fill: "#2e1065", stroke: "#6d28d9" },
-  method:   { icon: "ƒ",  label: "Method",      color: "#c4b5fd", fill: "#1e1b4b", stroke: "#5b21b6" },
-  api:      { icon: "⇌",  label: "API",         color: "#34d399", fill: "#022c22", stroke: "#065f46" },
-  database: { icon: "⊚",  label: "Database",    color: "#fbbf24", fill: "#1c0a00", stroke: "#92400e" },
-  client:   { icon: "▯",  label: "Client",      color: "#60a5fa", fill: "#0c1a2e", stroke: "#1e40af" },
-  module:   { icon: "▤",  label: "Module",      color: "#9ca3af", fill: "#111827", stroke: "#374151" },
-  function: { icon: "λ",  label: "Function",    color: "#34d399", fill: "#022c22", stroke: "#059669" },
-  object:   { icon: "◈",  label: "Object",      color: "#fb923c", fill: "#431407", stroke: "#c2410c" },
-  event:    { icon: "⚡", label: "Event",       color: "#fca5a5", fill: "#2d0a1f", stroke: "#b91c1c" },
-  state:    { icon: "◉",  label: "State",       color: "#6ee7b7", fill: "#022c22", stroke: "#059669" },
-  ui:       { icon: "▭",  label: "UI Layer",    color: "#f472b6", fill: "#2d0a1f", stroke: "#9d174d" },
-  // ── Data Analytics / ML ───────────────────────────────────────────────────
-  datasrc:  { icon: "⊞",  label: "Data Source", color: "#60a5fa", fill: "#0c1a2e", stroke: "#1e40af" },
-  ingest:   { icon: "⤵",  label: "Ingest",      color: "#818CF8", fill: "#1e1b4b", stroke: "#4338ca" },
-  transform:{ icon: "⟳",  label: "Transform",   color: "#a78bfa", fill: "#2e1065", stroke: "#6d28d9" },
-  model:    { icon: "⬡",  label: "Model",       color: "#34d399", fill: "#022c22", stroke: "#065f46" },
-  train:    { icon: "↺",  label: "Training",    color: "#fbbf24", fill: "#1c0a00", stroke: "#92400e" },
-  validate: { icon: "✓",  label: "Validation",  color: "#6ee7b7", fill: "#022c22", stroke: "#059669" },
-  output:   { icon: "▶",  label: "Output",      color: "#f87171", fill: "#450a0a", stroke: "#991b1b" },
-  pipeline: { icon: "⟹",  label: "Pipeline",    color: "#fb923c", fill: "#431407", stroke: "#c2410c" },
-  feature:  { icon: "⊡",  label: "Feature",     color: "#c4b5fd", fill: "#1e1b4b", stroke: "#5b21b6" },
-  storage:  { icon: "⊟",  label: "Storage",     color: "#9ca3af", fill: "#111827", stroke: "#374151" },
-  // ── General / Generic ─────────────────────────────────────────────────────
-  process:  { icon: "▷",  label: "Process",     color: "#818CF8", fill: "#1e1b4b", stroke: "#4338ca" },
-  decision: { icon: "◇",  label: "Decision",    color: "#fbbf24", fill: "#1c0a00", stroke: "#92400e" },
-  start:    { icon: "●",  label: "Start/End",   color: "#34d399", fill: "#022c22", stroke: "#065f46" },
-  input:    { icon: "▱",  label: "Input",       color: "#60a5fa", fill: "#0c1a2e", stroke: "#1e40af" },
-  store:    { icon: "⊏",  label: "Data Store",  color: "#9ca3af", fill: "#111827", stroke: "#374151" },
-  actor:    { icon: "☺",  label: "Actor",       color: "#f472b6", fill: "#2d0a1f", stroke: "#9d174d" },
-  system:   { icon: "⬕",  label: "System",      color: "#fb923c", fill: "#431407", stroke: "#c2410c" },
-  note:     { icon: "≡",  label: "Note",        color: "#6b7280", fill: "#111827", stroke: "#374151" },
 };
 
 const ROLE_COLORS: Record<string, string> = {
@@ -127,136 +92,29 @@ const SCENARIO_PALETTES: Array<{
   components: string[];
   hint: string;
 }> = [
-  // ── Networking / Security ──────────────────────────────────────────────────
   {
-    keywords: ["vlan", "segmentation", "segment", "clinic", "network topology", "network design"],
+    keywords: ["vlan", "segmentation", "segment", "clinic", "network"],
     components: ["firewall", "switch", "vlan", "vlan", "vlan", "endpoint", "wifi"],
     hint: "Show at least three VLANs, place the firewall at the enforcement boundary, label each VLAN.",
   },
   {
-    keywords: ["failover", "redundan", "ospf", "isp", "wan", "backup link"],
+    keywords: ["failover", "redundan", "ospf", "isp", "wan", "backup"],
     components: ["router", "router", "firewall", "cloud", "isp", "isp"],
     hint: "Show primary and backup ISP paths, dual edge routers, and the cloud destination.",
   },
   {
-    keywords: ["hipaa", "safeguard", "compliance", "administrative control", "technical control"],
+    keywords: ["hipaa", "safeguard", "compliance", "phy", "admin", "technical"],
     components: ["shield", "server", "lock", "endpoint", "noc", "cloud"],
     hint: "Map all three HIPAA safeguard categories (administrative, physical, technical) to components.",
   },
   {
-    keywords: ["noc", "siem", "log monitoring", "alert", "incident response"],
+    keywords: ["noc", "siem", "log", "monitor", "alert", "incident"],
     components: ["noc", "siem", "firewall", "switch", "router", "server"],
     hint: "Connect log sources to the SIEM, then show the NOC analyst connection and alert path.",
-  },
-  // ── Software / SDC ─────────────────────────────────────────────────────────
-  {
-    keywords: ["class", "object", "inherit", "polymorphi", "encapsul", "oop", "uml"],
-    components: ["class", "class", "class", "interface", "object", "method"],
-    hint: "Draw the class hierarchy, show inheritance arrows, and label each class with its key attributes and methods.",
-  },
-  {
-    keywords: ["api", "rest", "endpoint", "request", "response", "http", "microservice"],
-    components: ["client", "api", "server", "database", "cloud", "module"],
-    hint: "Show the client→API→server→database call chain, label each request/response with the HTTP method and data.",
-  },
-  {
-    keywords: ["event", "listener", "callback", "async", "promise", "queue", "pub", "sub"],
-    components: ["event", "module", "function", "state", "ui", "database"],
-    hint: "Map the event source, listener chain, and any async state changes that result.",
-  },
-  {
-    keywords: ["state", "fsm", "transition", "finite", "workflow", "lifecycle"],
-    components: ["state", "state", "state", "event", "decision", "process"],
-    hint: "Draw each state as a node, label transitions with the triggering event, and show the start and end states.",
-  },
-  {
-    keywords: ["mvc", "model", "view", "controller", "frontend", "backend", "layer", "tier"],
-    components: ["ui", "module", "api", "database", "server", "client"],
-    hint: "Separate the UI, logic, and data layers clearly and show how data flows between them.",
-  },
-  {
-    keywords: ["algorithm", "sort", "search", "recursion", "loop", "iteration", "complexity"],
-    components: ["start", "process", "decision", "process", "store", "output"],
-    hint: "Draw the algorithm as a flowchart — show each step, branch condition, and the output.",
-  },
-  {
-    keywords: ["function", "scope", "stack", "heap", "memory", "pointer", "variable"],
-    components: ["function", "store", "object", "state", "process", "output"],
-    hint: "Diagram the call stack or memory layout showing how variables and functions are allocated.",
-  },
-  // ── Data Analytics / Python / ML ───────────────────────────────────────────
-  {
-    keywords: ["data", "analytic", "pandas", "dataframe", "csv", "excel", "visuali"],
-    components: ["datasrc", "ingest", "transform", "storage", "output", "pipeline"],
-    hint: "Show the data source, loading/cleaning step, transformation, and final output or visualization.",
-  },
-  {
-    keywords: ["machine learning", "ml", "train", "model", "predict", "classif", "regression", "neural"],
-    components: ["datasrc", "feature", "train", "model", "validate", "output"],
-    hint: "Map the full ML pipeline: data → feature engineering → training → validation → prediction output.",
-  },
-  {
-    keywords: ["pipeline", "etl", "extract", "transform", "load", "batch", "stream"],
-    components: ["datasrc", "ingest", "transform", "storage", "pipeline", "output"],
-    hint: "Show each ETL stage as a node, label the data format at each handoff, and indicate batch vs stream.",
-  },
-  {
-    keywords: ["database", "sql", "query", "schema", "table", "relation", "join", "index"],
-    components: ["datasrc", "database", "store", "process", "output", "api"],
-    hint: "Draw the schema with tables as nodes, show foreign key relationships, and trace a sample query path.",
-  },
-  // ── Code / Function Call Diagrams ──────────────────────────────────────────
-  {
-    keywords: ["function", "call", "execution", "stack", "main(", "flowchart", "breakdown", "trace", "control flow", "pseudocode"],
-    components: ["start", "function", "process", "decision", "output", "module"],
-    hint: "Start with the entry point, show each function call as a node, use Decision for branches, and label each arrow with what triggers the call.",
-  },
-  {
-    keywords: ["loop", "iteration", "recursion", "while", "for loop", "base case"],
-    components: ["start", "decision", "process", "function", "output", "state"],
-    hint: "Show the loop condition as a Decision node, the loop body as Process nodes, and mark the base case or exit condition clearly.",
-  },
-  {
-    keywords: ["runtime", "memory", "heap", "stack frame", "pointer", "variable scope"],
-    components: ["start", "function", "store", "object", "state", "output"],
-    hint: "Diagram the call stack frames as Function nodes, show variables in Store nodes, and trace how memory is allocated and released.",
-  },
-  {
-    keywords: ["process", "flowchart", "flow", "diagram", "system", "design"],
-    components: ["start", "process", "decision", "process", "store", "output"],
-    hint: "Build a flowchart with a clear start, decision points, process steps, and a final output.",
-  },
-  {
-    keywords: ["user", "actor", "use case", "scenario", "stakeholder", "requirement"],
-    components: ["actor", "system", "process", "decision", "output", "note"],
-    hint: "Show each actor, the system boundary, and the use cases they interact with.",
   },
 ];
 
 const ALL_COMPONENTS = Object.keys(DEFS);
-
-// Domain-specific component sets — shown in palette based on detected scenario
-const DOMAIN_COMPONENTS: Record<string, string[]> = {
-  networking: ["router", "firewall", "switch", "vlan", "server", "cloud", "endpoint", "wifi", "isp", "noc", "siem", "shield", "lock", "dmz"],
-  software:   ["start", "function", "process", "decision", "module", "object", "state", "event", "output", "store", "class", "interface", "method", "api"],
-  code:       ["start", "function", "process", "decision", "module", "output", "store", "state", "object", "event", "input"],
-  data:       ["datasrc", "ingest", "transform", "model", "train", "validate", "output", "pipeline", "feature", "storage", "database", "cloud", "server"],
-  general:    ["start", "process", "decision", "input", "store", "output", "actor", "system", "note", "module", "event", "state"],
-};
-
-function getDomainForScenario(concept: string): string {
-  const lower = concept.toLowerCase();
-  const codeKw       = ["function", "call stack", "execution", "flowchart", "breakdown", "trace", "runtime", "pseudocode", "control flow", "loop", "iteration", "recursion", "def ", "main(", "return value", "stack frame", "scope"];
-  const dataKw       = ["data", "analytic", "pandas", "ml", "machine learning", "train", "model", "pipeline", "etl", "database", "sql", "dataset", "predict", "classif", "regression", "neural", "feature"];
-  const softwareKw   = ["class", "object", "api", "rest", "mvc", "interface", "module", "event", "state machine", "fsm", "algorithm", "software design", "oop", "uml", "microservice"];
-  const networkingKw = ["vlan", "router", "firewall", "switch", "isp", "wan", "noc", "siem", "hipaa", "network topology", "segmentation", "failover", "ospf", "dmz", "wifi", "compliance", "safeguard"];
-  // Code must be checked first — networking keywords are too broad and can false-match
-  if (codeKw.some((k) => lower.includes(k)))       return "code";
-  if (dataKw.some((k) => lower.includes(k)))        return "data";
-  if (softwareKw.some((k) => lower.includes(k)))   return "software";
-  if (networkingKw.some((k) => lower.includes(k))) return "networking";
-  return "general";
-}
 
 function detectScenario(concept: string): { components: string[]; hint: string } {
   const lower = concept.toLowerCase();
@@ -265,58 +123,13 @@ function detectScenario(concept: string): { components: string[]; hint: string }
       return { components: s.components, hint: s.hint };
     }
   }
-  // Domain-aware fallback when no keyword matches
-  const isSDC = /code|program|software|python|java|script|develop|debug|function|variable/.test(lower);
-  const isData = /data|analyt|statistic|chart|graph|plot|dataset|metric/.test(lower);
-  if (isSDC) {
-    return {
-      components: ["start", "process", "decision", "function", "store", "output"],
-      hint: "Build a flowchart or structure diagram showing the logic, inputs, outputs, and key decisions.",
-    };
-  }
-  if (isData) {
-    return {
-      components: ["datasrc", "ingest", "transform", "model", "output", "storage"],
-      hint: "Show the data flow from source through processing to output, labeling each transformation.",
-    };
-  }
-  // Generic fallback
   return {
-    components: ["start", "process", "decision", "store", "output", "actor"],
-    hint: "Draw a diagram that best represents your answer — label each component and show how they connect.",
+    components: ["router", "firewall", "switch", "server", "cloud", "endpoint"],
+    hint: "Label each component clearly and connect them to show traffic flow.",
   };
 }
 
-// Returns the point where the line from (cx,cy) toward (tx,ty) exits the
-// rounded rectangle centered at (cx,cy) with half-dimensions hw x hh.
-function rectEdgePoint(
-  cx: number, cy: number, hw: number, hh: number,
-  tx: number, ty: number, gap: number
-): { x: number; y: number } {
-  const dx = tx - cx, dy = ty - cy;
-  if (Math.abs(dx) < 0.001 && Math.abs(dy) < 0.001) return { x: cx, y: cy };
-  // Find t for intersection with each side
-  const candidates: number[] = [];
-  if (Math.abs(dx) > 0.001) {
-    candidates.push((hw) / Math.abs(dx));
-    candidates.push((-hw) / Math.abs(dx));
-  }
-  if (Math.abs(dy) > 0.001) {
-    candidates.push((hh) / Math.abs(dy));
-    candidates.push((-hh) / Math.abs(dy));
-  }
-  // Smallest positive t that keeps us inside the box
-  const t = Math.min(...candidates.filter((v) => v > 0));
-  const ix = cx + dx * t;
-  const iy = cy + dy * t;
-  // Clamp to box edges
-  const ex = Math.max(cx - hw, Math.min(cx + hw, ix));
-  const ey = Math.max(cy - hh, Math.min(cy + hh, iy));
-  // Apply gap along the direction vector
-  const len = Math.sqrt(dx * dx + dy * dy);
-  const ux = dx / len, uy = dy / len;
-  return { x: ex + ux * gap, y: ey + uy * gap };
-}
+// ─── Canvas drawing helpers ───────────────────────────────────────────────────
 
 function roundRect(
   ctx: CanvasRenderingContext2D,
@@ -361,8 +174,7 @@ export default function DiagramBuilder({
   questionText,
   onCaptureSnapshot,
   role,
-  diagramState,
-  onDiagramStateChange,
+  isVisible,
 }: DiagramBuilderProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [nodes, setNodes] = useState<DiagramNode[]>([]);
@@ -372,7 +184,6 @@ export default function DiagramBuilder({
   const [selectedEdge, setSelectedEdge] = useState<DiagramEdge | null>(null);
   const [hoverNodeId, setHoverNodeId] = useState<number | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(true);
-  const [domainOverride, setDomainOverride] = useState<string | null>(null);
   const [evaluating, setEvaluating] = useState(false);
   const [evaluation, setEvaluation] = useState<DiagramEvaluation | null>(null);
   const [scenario, setScenario] = useState<{ components: string[]; hint: string }>(
@@ -403,26 +214,7 @@ export default function DiagramBuilder({
   useEffect(() => {
     setScenario(detectScenario(focusConcept));
     setEvaluation(null);
-    // Load saved diagram state for this question, or clear if none
-    if (diagramState) {
-      setNodes(diagramState.nodes);
-      setEdges(diagramState.edges);
-      setNextId(diagramState.nextId);
-    } else {
-      setNodes([]);
-      setEdges([]);
-      setNextId(1);
-    }
-    setSelectedNode(null);
-    setSelectedEdge(null);
   }, [questionIndex, focusConcept]);
-
-  // Emit state changes so parent can save per-question
-  useEffect(() => {
-    if (onDiagramStateChange) {
-      onDiagramStateChange({ nodes, edges, nextId });
-    }
-  }, [nodes, edges]);
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -443,12 +235,7 @@ export default function DiagramBuilder({
   };
 
   const getHandleAt = (x: number, y: number, nodeList: DiagramNode[]) => {
-    // Only show/hit handles on the currently hovered node.
-    // We read directly from hoverNodeIdRef (the mutable ref) NOT from
-    // React state, so this is always current even inside mousedown.
-    const hovId = hoverNodeIdRef.current;
-    if (hovId === null) return null;
-    const hov = nodeList.find((n) => n.id === hovId);
+    const hov = nodeList.find((n) => n.id === hoverNodeIdRef.current);
     if (!hov) return null;
     for (const h of getHandles(hov)) {
       if ((x - h.x) ** 2 + (y - h.y) ** 2 <= HANDLE_HIT ** 2) {
@@ -527,11 +314,7 @@ export default function DiagramBuilder({
       const ux = dx / len, uy = dy / len;
       const isSel = selectedEdge?.id === e.id;
       const color = isSel ? "#818CF8" : "#4b5563";
-      const GAP = 3;
-
-      // Proper rect-edge intersection so angled arrows land cleanly
-      const startPt = rectEdgePoint(a.x, a.y, NODE_W / 2, NODE_H / 2, b.x, b.y, GAP);
-      const endPt   = rectEdgePoint(b.x, b.y, NODE_W / 2, NODE_H / 2, a.x, a.y, GAP);
+      const OFFSET = 4;
 
       ctx.save();
       ctx.strokeStyle = color;
@@ -539,26 +322,28 @@ export default function DiagramBuilder({
       ctx.setLineDash(isSel ? [5, 3] : []);
 
       if (e.dir === "both") {
-        // Offset the two parallel lines slightly perpendicular to avoid overlap
         const px = -uy * 2.5, py = ux * 2.5;
-        ctx.beginPath();
-        ctx.moveTo(startPt.x + px, startPt.y + py);
-        ctx.lineTo(endPt.x + px, endPt.y + py);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(endPt.x - px, endPt.y - py);
-        ctx.lineTo(startPt.x - px, startPt.y - py);
-        ctx.stroke();
+        const ax1 = a.x + NODE_W / 2 * ux + OFFSET * ux + px;
+        const ay1 = a.y + NODE_H / 2 * uy + OFFSET * uy + py;
+        const bx1 = b.x - NODE_W / 2 * ux - OFFSET * ux + px;
+        const by1 = b.y - NODE_H / 2 * uy - OFFSET * uy + py;
+        const ax2 = b.x - NODE_W / 2 * ux - OFFSET * ux - px;
+        const ay2 = b.y - NODE_H / 2 * uy - OFFSET * uy - py;
+        const bx2 = a.x + NODE_W / 2 * ux + OFFSET * ux - px;
+        const by2 = a.y + NODE_H / 2 * uy + OFFSET * uy - py;
+        ctx.beginPath(); ctx.moveTo(ax1, ay1); ctx.lineTo(bx1, by1); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(ax2, ay2); ctx.lineTo(bx2, by2); ctx.stroke();
         ctx.setLineDash([]);
-        drawArrowHead(ctx, endPt.x + px, endPt.y + py, ux, uy, color);
-        drawArrowHead(ctx, startPt.x - px, startPt.y - py, -ux, -uy, color);
+        drawArrowHead(ctx, bx1, by1, ux, uy, color);
+        drawArrowHead(ctx, bx2, by2, -ux, -uy, color);
       } else {
-        ctx.beginPath();
-        ctx.moveTo(startPt.x, startPt.y);
-        ctx.lineTo(endPt.x, endPt.y);
-        ctx.stroke();
+        const sx = a.x + NODE_W / 2 * ux + OFFSET * ux;
+        const sy = a.y + NODE_H / 2 * uy + OFFSET * uy;
+        const ex = b.x - NODE_W / 2 * ux - OFFSET * ux;
+        const ey = b.y - NODE_H / 2 * uy - OFFSET * uy;
+        ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
         ctx.setLineDash([]);
-        drawArrowHead(ctx, endPt.x, endPt.y, ux, uy, color);
+        drawArrowHead(ctx, ex, ey, ux, uy, color);
       }
       ctx.restore();
 
@@ -647,7 +432,7 @@ export default function DiagramBuilder({
           ctx.arc(h.x, h.y, HANDLE_R, 0, Math.PI * 2);
           ctx.fillStyle = "#818CF8";
           ctx.fill();
-          ctx.strokeStyle = "#080810";
+          ctx.strokeStyle = "#111";
           ctx.lineWidth = 1.5;
           ctx.stroke();
         });
@@ -658,6 +443,13 @@ export default function DiagramBuilder({
   // Re-render whenever state changes
   useEffect(() => { render(); }, [nodes, edges, selectedNode, selectedEdge, hoverNodeId, render]);
 
+  // Re-render when tab becomes visible — canvas has 0 dimensions while hidden
+  useEffect(() => {
+    if (isVisible) {
+      requestAnimationFrame(() => render());
+    }
+  }, [isVisible, render]);
+
   // ── Canvas events ─────────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -666,13 +458,7 @@ export default function DiagramBuilder({
 
     const getXY = (e: MouseEvent) => {
       const r = canvas.getBoundingClientRect();
-      // Scale mouse coords from CSS pixels to canvas pixels
-      const scaleX = canvas.width / r.width;
-      const scaleY = canvas.height / r.height;
-      return {
-        x: (e.clientX - r.left) * scaleX,
-        y: (e.clientY - r.top) * scaleY,
-      };
+      return { x: e.clientX - r.left, y: e.clientY - r.top };
     };
 
     const onMouseMove = (e: MouseEvent) => {
@@ -694,32 +480,20 @@ export default function DiagramBuilder({
         return;
       }
 
-      // Always update hover ref synchronously first so mousedown sees it immediately
+      const h = getHandleAt(x, y, nodesRef.current);
+      if (h) { canvas.style.cursor = "crosshair"; render(); return; }
+
+      const prev = hoverNodeIdRef.current;
       const hit = getNodeAt(x, y, nodesRef.current);
       const newId = hit ? hit.id : null;
-      const prev = hoverNodeIdRef.current;
       if (newId !== prev) {
-        hoverNodeIdRef.current = newId;   // sync ref update — mousedown reads this
-        setHoverNodeId(newId);            // async React state for re-render
-        render();
+        setHoverNodeId(newId);
       }
-
-      // Check handles after hover is updated
-      const h = getHandleAt(x, y, nodesRef.current);
-      canvas.style.cursor = h ? "crosshair" : hit ? "grab" : "default";
-      if (h) render();
+      canvas.style.cursor = hit ? "grab" : "default";
     };
 
-    // Track mousedown position to distinguish click vs drag
-    const mouseDownPosRef = { x: 0, y: 0 };
-
     const onMouseDown = (e: MouseEvent) => {
-      // Ignore right-clicks and double-click repeats
-      if (e.button !== 0 || e.detail > 1) return;
       const { x, y } = getXY(e);
-      mouseDownPosRef.x = x;
-      mouseDownPosRef.y = y;
-
       const h = getHandleAt(x, y, nodesRef.current);
       if (h) {
         connDragRef.current = { fromId: h.node.id, fromX: h.x, fromY: h.y, curX: x, curY: y, snapTarget: null };
@@ -765,23 +539,9 @@ export default function DiagramBuilder({
         render();
         return;
       }
-      if (dragNodeRef.current) {
-        // If mouse barely moved it was a click not a drag — keep selection but don't deselect
-        const { x, y } = getXY(e);
-        const moved = Math.abs(x - mouseDownPosRef.x) + Math.abs(y - mouseDownPosRef.y);
-        if (moved < 4) {
-          // Pure click — selection was already set on mousedown, nothing more to do
-        }
-        dragNodeRef.current = null;
-        canvas.style.cursor = hoverNodeIdRef.current ? "grab" : "default";
-        return;
-      }
       dragNodeRef.current = null;
       canvas.style.cursor = hoverNodeIdRef.current ? "grab" : "default";
     };
-
-    // Suppress double-click text selection / event confusion on the canvas
-    const onDblClick = (e: MouseEvent) => { e.preventDefault(); e.stopPropagation(); };
 
     const onMouseLeave = () => {
       if (connDragRef.current) { connDragRef.current = null; render(); }
@@ -794,13 +554,11 @@ export default function DiagramBuilder({
     canvas.addEventListener("mousedown", onMouseDown);
     canvas.addEventListener("mouseup", onMouseUp);
     canvas.addEventListener("mouseleave", onMouseLeave);
-    canvas.addEventListener("dblclick", onDblClick);
     return () => {
       canvas.removeEventListener("mousemove", onMouseMove);
       canvas.removeEventListener("mousedown", onMouseDown);
       canvas.removeEventListener("mouseup", onMouseUp);
       canvas.removeEventListener("mouseleave", onMouseLeave);
-      canvas.removeEventListener("dblclick", onDblClick);
     };
   }, [render, addNode]);
 
@@ -812,9 +570,7 @@ export default function DiagramBuilder({
     const type = paletteDragTypeRef.current || e.dataTransfer.getData("text/plain");
     if (!type || !DEFS[type]) return;
     const r = canvasRef.current!.getBoundingClientRect();
-    const scaleX = canvasRef.current!.width / r.width;
-    const scaleY = canvasRef.current!.height / r.height;
-    addNode(type, (e.clientX - r.left) * scaleX, (e.clientY - r.top) * scaleY);
+    addNode(type, e.clientX - r.left, e.clientY - r.top);
     paletteDragTypeRef.current = null;
   };
 
@@ -884,62 +640,27 @@ export default function DiagramBuilder({
         : "";
     }).filter(Boolean).join(", ");
 
-    // ── Client-side scoring — not delegated to AI ─────────────────────────
-    const hasEnoughNodes    = nodes.length >= 4;
-    const hasEnoughEdges    = edges.length >= 3;
-    const hasCustomLabels   = nodes.some((n) => n.label !== n.def.label);
-    const hasRoles          = nodes.some((n) => n.role !== "");
-    const hasEdgeLabels     = edges.some((e) => e.label !== "");
+    const prompt = `You are evaluating a student's network diagram during a whiteboard defense for a cybersecurity/networking course.
 
-    const checks = [
-      {
-        label: "Components placed",
-        pass: hasEnoughNodes,
-        note: hasEnoughNodes
-          ? `${nodes.length} components placed on the diagram.`
-          : `Add more components — at least 4 are needed to represent the concept.`,
-      },
-      {
-        label: "Connections drawn",
-        pass: hasEnoughEdges,
-        note: hasEnoughEdges
-          ? `${edges.length} connections show the flow between components.`
-          : `Connect more components — at least 3 links are needed to show flow.`,
-      },
-      {
-        label: "Labels & roles applied",
-        pass: hasCustomLabels || hasRoles || hasEdgeLabels,
-        note: (hasCustomLabels || hasRoles || hasEdgeLabels)
-          ? `Components and/or links have been labeled to reflect the specific concept.`
-          : `Rename components and label links to show what each one represents.`,
-      },
-    ];
-
-    const passing = checks.filter((c) => c.pass).length;
-    const isEmpty = nodes.length === 0 && edges.length === 0;
-    const baseScore = isEmpty ? 0 : passing === 3 ? 10 : passing === 2 ? 7 : passing === 1 ? 5 : 3;
-    const overallScore = baseScore;
-
-    // ── AI used only for qualitative feedback, not scoring ────────────────
-    const prompt = `You are giving brief feedback on a student's diagram during a whiteboard defense. Do NOT score or grade — scoring has already been handled separately.
-
-Defense question: "${questionText}"
-Concept: "${focusConcept}"
+Defense question concept: "${focusConcept}"
+Full question: "${questionText}"
+Scenario hint: ${scenario.hint}
 
 Student's diagram:
 Nodes (${nodes.length}): ${nodeList || "(none)"}
 Links (${edges.length}): ${edgeList || "(none)"}
 
-Write feedback as 3 short check observations and 1-2 missing concept suggestions. Be encouraging and specific to what is actually in the diagram above. Respond ONLY with valid JSON, no markdown fences:
+Evaluate on exactly three criteria specific to this question, and respond ONLY with valid JSON, no markdown fences:
 {
+  "overallScore": <integer 1-10>,
   "checks": [
-    {"label": "short criterion name", "pass": true, "note": "one sentence citing something specific from the diagram"},
-    {"label": "short criterion name", "pass": true, "note": "one sentence citing something specific from the diagram"},
-    {"label": "short criterion name", "pass": ${passing < 3 ? "false" : "true"}, "note": "one sentence citing something specific from the diagram"}
+    {"label": "short criterion", "pass": true|false, "note": "one specific sentence"},
+    {"label": "short criterion", "pass": true|false, "note": "one specific sentence"},
+    {"label": "short criterion", "pass": true|false, "note": "one specific sentence"}
   ],
-  "missingConcepts": ["1-2 suggestions for enrichment only"],
+  "missingConcepts": ["concept1", "concept2"],
   "integritySignal": "low|medium|high",
-  "integrityNote": "one sentence on whether the diagram suggests genuine understanding"
+  "integrityNote": "one sentence on whether placement and labeling suggest genuine understanding vs guessing"
 }`;
 
     try {
@@ -950,37 +671,36 @@ Write feedback as 3 short check observations and 1-2 missing concept suggestions
       });
       if (res.ok) {
         const data = await res.json();
-        // Always use OUR checks and score — never the AI's.
-        // Only borrow the AI's note text if it happens to match our criteria count.
-        const enrichedChecks = checks.map((c, i) => ({
-          ...c,
-          note: data.checks?.[i]?.note ?? c.note,
-        }));
-        setEvaluation({
-          overallScore,
-          checks: enrichedChecks,
-          missingConcepts: data.missingConcepts ?? [],
-          integritySignal: data.integritySignal ?? "low",
-          integrityNote: data.integrityNote ?? "",
-        });
+        setEvaluation(data);
       } else {
-        setEvaluation({ overallScore, checks, missingConcepts: [], integritySignal: "low", integrityNote: "Evaluation service unavailable." });
+        // Fallback local evaluation
+        setEvaluation({
+          overallScore: nodes.length >= 3 && edges.length >= 2 ? 6 : 3,
+          checks: [
+            { label: "Components placed", pass: nodes.length >= 3, note: nodes.length < 3 ? "Add more components to represent the topology." : "Sufficient components present." },
+            { label: "Traffic flow shown", pass: edges.length >= 2, note: edges.length < 2 ? "Connect components to show traffic flow." : "Connections present." },
+            { label: "Labels meaningful", pass: nodes.some((n) => n.label !== n.def.label), note: nodes.some((n) => n.label !== n.def.label) ? "At least some labels customized." : "Rename components to match your specific design." },
+          ],
+          missingConcepts: [],
+          integritySignal: "low",
+          integrityNote: "Manual evaluation required — AI evaluation unavailable.",
+        });
       }
     } catch {
-      setEvaluation({ overallScore, checks, missingConcepts: [], integritySignal: "low", integrityNote: "Could not reach evaluation endpoint." });
+      setEvaluation({
+        overallScore: 0,
+        checks: [{ label: "Evaluation error", pass: false, note: "Could not reach evaluation endpoint." }],
+        missingConcepts: [],
+        integritySignal: "low",
+        integrityNote: "Evaluation service unavailable.",
+      });
     }
     setEvaluating(false);
   };
 
   // ── Render UI ─────────────────────────────────────────────────────────────────
 
-  const domain = domainOverride ?? getDomainForScenario(focusConcept);
-  const domainComponents = DOMAIN_COMPONENTS[domain] ?? DOMAIN_COMPONENTS.general;
-  // Scenario-specific components first, then the rest of the domain set, no duplicates
-  // When domain is overridden by instructor, skip scenario components to show clean domain set
-  const paletteTypes = domainOverride
-    ? [...new Set([...domainComponents])]
-    : [...new Set([...scenario.components, ...domainComponents])];
+  const paletteTypes = [...new Set([...scenario.components, ...ALL_COMPONENTS])];
 
   return (
     <div className="space-y-3">
@@ -995,32 +715,15 @@ Write feedback as 3 short check observations and 1-2 missing concept suggestions
 
       {/* Palette */}
       <div className="bg-[#0d0d11] border border-white/5 rounded-xl p-3">
-        <div className="flex items-center gap-3 w-full">
-          <button
-            type="button"
-            onClick={() => setPaletteOpen(!paletteOpen)}
-            className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-white/40 hover:text-white/60 transition flex-1"
-          >
-            Component palette — drag onto canvas
-            <ChevronDown className={`w-3 h-3 transition-transform ${paletteOpen ? "rotate-180" : ""}`} />
-          </button>
-          {(role === "instructor" || role === "both") && (
-            <select
-              value={domainOverride ?? ""}
-              onChange={(e) => setDomainOverride(e.target.value || null)}
-              className="text-[10px] font-mono uppercase bg-[#111] border border-white/10 text-white/50 rounded px-2 py-1 cursor-pointer hover:border-white/20 transition"
-              title="Override component palette domain"
-            >
-              <option value="">Auto-detect</option>
-              <option value="networking">Networking</option>
-              <option value="software">Software</option>
-              <option value="code">Code / Flowchart</option>
-              <option value="data">Data / ML</option>
-              <option value="general">General</option>
-            </select>
-          )}
-        </div>
-        <div className={`flex flex-wrap gap-1.5 transition-all overflow-hidden ${paletteOpen ? "mt-3 max-h-96" : "mt-2 max-h-12"}`}>
+        <button
+          type="button"
+          onClick={() => setPaletteOpen(!paletteOpen)}
+          className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-white/40 hover:text-white/60 transition w-full"
+        >
+          Component palette — drag onto canvas
+          <ChevronDown className={`w-3 h-3 ml-auto transition-transform ${paletteOpen ? "rotate-180" : ""}`} />
+        </button>
+        <div className={`flex flex-wrap gap-1.5 transition-all overflow-hidden ${paletteOpen ? "mt-3 max-h-96" : "mt-2 max-h-20"}`}>
           {paletteTypes.map((type) => {
             const d = DEFS[type];
             if (!d) return null;
@@ -1043,7 +746,7 @@ Write feedback as 3 short check observations and 1-2 missing concept suggestions
 
       {/* Canvas */}
       <div
-        className="bg-[#080810] border border-white/30 rounded-xl overflow-hidden"
+        className="bg-[#080810] border border-white/5 rounded-xl overflow-hidden"
         onDragOver={onDragOver}
         onDrop={onDrop}
       >
@@ -1181,10 +884,8 @@ Write feedback as 3 short check observations and 1-2 missing concept suggestions
           <div className="flex items-center gap-3">
             <span className="text-xs font-bold text-white/60 uppercase tracking-widest font-mono">Diagram evaluation</span>
             <span className={`ml-auto px-2.5 py-0.5 rounded-full text-xs font-bold font-mono ${
-              evaluation.overallScore === 10 ? "bg-emerald-950/40 text-emerald-300 border border-emerald-700/50"
-              : evaluation.overallScore >= 8 ? "bg-emerald-950/40 text-emerald-400 border border-emerald-900/50"
-              : evaluation.overallScore >= 7 ? "bg-indigo-950/40 text-indigo-400 border border-indigo-900/50"
-              : evaluation.overallScore >= 5 ? "bg-amber-950/40 text-amber-400 border border-amber-900/50"
+              evaluation.overallScore >= 8 ? "bg-emerald-950/40 text-emerald-400 border border-emerald-900/50"
+              : evaluation.overallScore >= 6 ? "bg-amber-950/40 text-amber-400 border border-amber-900/50"
               : "bg-red-950/40 text-red-400 border border-red-900/50"
             }`}>
               {evaluation.overallScore}/10
@@ -1194,8 +895,8 @@ Write feedback as 3 short check observations and 1-2 missing concept suggestions
               : evaluation.integritySignal === "medium" ? "bg-amber-950/40 text-amber-400 border border-amber-900/50"
               : "bg-red-950/40 text-red-400 border border-red-900/50"
             }`}>
-              {evaluation.integritySignal === "low" ? "✓ Authentic"
-               : evaluation.integritySignal === "medium" ? "⚠ Follow up"
+              {evaluation.integritySignal === "low" ? "✓ Low concern"
+               : evaluation.integritySignal === "medium" ? "⚠ Review needed"
                : "⛐ Flagged"}
             </span>
           </div>

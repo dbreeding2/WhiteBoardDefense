@@ -23,8 +23,14 @@ export default function App() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [allQuestionStrokes, setAllQuestionStrokes] = useState<DrawingStroke[][]>(Array(8).fill([]));
   const [allQuestionDocs, setAllQuestionDocs] = useState<string[]>(Array(8).fill(""));
-  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<'draw' | 'text' | 'diagram'>('draw');
+  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<'draw' | 'text' | 'diagram'>('diagram');
   const [snapshots, setSnapshots] = useState<string[]>(Array(8).fill(""));
+
+  // Refs so WebSocket closures always see current values (avoids stale closure bug)
+  const questionsRef = useRef<DefenseQuestion[]>([]);
+  const studentNameRef = useRef("");
+  const paperTitleRef = useRef("");
+  const courseNameRef = useRef("");
 
   // Follow-up chat and evaluation
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
@@ -42,6 +48,12 @@ export default function App() {
 
   // WebSocket reference
   const wsRef = useRef<WebSocket | null>(null);
+
+  // Keep refs in sync with state for use in WebSocket closures
+  useEffect(() => { questionsRef.current = questions; }, [questions]);
+  useEffect(() => { studentNameRef.current = studentName; }, [studentName]);
+  useEffect(() => { paperTitleRef.current = paperTitle; }, [paperTitle]);
+  useEffect(() => { courseNameRef.current = courseName; }, [courseName]);
 
   // Generate unique session ID
   const generateSessionId = () => {
@@ -103,12 +115,12 @@ export default function App() {
         const { type, data } = payload;
 
         if (type === "system_message") {
-          console.log("WebSocket Sync Broadcast:", data);
+          console.log("WebSocket Sync Broadcast:", payload.text);
           // If a student just joined and we're the instructor already in session, re-send questions
           if (
-            payload.text?.includes("Student joined") &&
+            payload.text?.toLowerCase().includes("student joined") &&
             role !== "student" &&
-            questions.length > 0 &&
+            questionsRef.current.length > 0 &&
             wsRef.current?.readyState === WebSocket.OPEN
           ) {
             setTimeout(() => {
@@ -116,9 +128,14 @@ export default function App() {
                 type: "sync_questions",
                 sessionId,
                 role,
-                data: { questions, studentName, paperTitle, courseName },
+                data: {
+                  questions: questionsRef.current,
+                  studentName: studentNameRef.current,
+                  paperTitle: paperTitleRef.current,
+                  courseName: courseNameRef.current,
+                },
               }));
-            }, 800);
+            }, 1000);
           }
         } else if (type === "slide_change") {
           setCurrentQuestionIndex(data.idx);
@@ -312,7 +329,7 @@ export default function App() {
 
     // Broadcast real questions to any student already waiting in the session room
     // Small delay to ensure the WebSocket is in the session stage before sending
-    setTimeout(() => {
+    const broadcastQuestions = () => {
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
         wsRef.current.send(JSON.stringify({
           type: "sync_questions",
@@ -326,7 +343,10 @@ export default function App() {
           },
         }));
       }
-    }, 500);
+    };
+    // Broadcast twice — once after 1s, again after 3s to catch late-joining students
+    setTimeout(broadcastQuestions, 1000);
+    setTimeout(broadcastQuestions, 3000);
   };
 
   const handleSaveSnapshot = (idx: number, b64: string) => {

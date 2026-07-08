@@ -128,6 +128,27 @@ async function extractPptxText(file: File): Promise<string> {
   return slideTexts.join("\n\n");
 }
 
+// ─── DOCX text extraction ─────────────────────────────────────────────────────
+// Uses mammoth.js to convert a .docx file to plain text in the browser.
+async function extractDocxText(file: File): Promise<string> {
+  let mammoth: any;
+  try {
+    const mod = await import("mammoth");
+    mammoth = mod.default || mod;
+  } catch {
+    throw new Error("mammoth.js not available. Please paste the document content manually.");
+  }
+
+  const arrayBuffer = await file.arrayBuffer();
+  const result = await mammoth.extractRawText({ arrayBuffer });
+
+  if (!result.value || result.value.trim().length === 0) {
+    throw new Error("Could not extract text from this .docx file. Try pasting the content manually.");
+  }
+
+  return result.value;
+}
+
 // ─── Image compression helper ─────────────────────────────────────────────────
 // Resizes and compresses an image to max 1280px wide at 75% JPEG quality.
 // Returns a compressed base64 data URL.
@@ -185,6 +206,10 @@ export default function SetupForm({ onSetupComplete, isLoading, assessmentMode, 
       if (file.name.toLowerCase().endsWith(".pptx")) {
         // PPTX: extract text from slide XML
         const extracted = await extractPptxText(file);
+        setPastedText(extracted);
+      } else if (file.name.toLowerCase().endsWith(".docx")) {
+        // DOCX: extract text using mammoth.js
+        const extracted = await extractDocxText(file);
         setPastedText(extracted);
       } else {
         // Plain text / markdown / other text files
@@ -363,7 +388,7 @@ export default function SetupForm({ onSetupComplete, isLoading, assessmentMode, 
               <input
                 type="file"
                 id="paper-file-upload-input"
-                accept=".txt,.md,.pdf,.pptx"
+                accept=".txt,.md,.pdf,.pptx,.docx"
                 onChange={handleFileUpload}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               />
@@ -371,7 +396,7 @@ export default function SetupForm({ onSetupComplete, isLoading, assessmentMode, 
               {fileLoading && (
                 <div className="mt-2 flex items-center gap-2 text-indigo-400 text-xs font-mono">
                   <div className="w-3 h-3 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin"></div>
-                  Extracting slide content...
+                  Extracting content...
                 </div>
               )}
 

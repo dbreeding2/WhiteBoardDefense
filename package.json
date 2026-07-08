@@ -6,12 +6,13 @@
   "scripts": {
     "dev": "tsx server.ts",
     "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
+    "postbuild": "node -e \"require('fs').writeFileSync('dist/web.config', '<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?><configuration><system.webServer><rewrite><rules><rule name=\\\"ReverseProxyToNode\\\" stopProcessing=\\\"true\\\"><match url=\\\"(.*)\\\" /><action type=\\\"Rewrite\\\" url=\\\"http://localhost:3456/{R:1}\\\" /></rule></rules></rewrite><security><requestFiltering><requestLimits maxAllowedContentLength=\\\"52428800\\\" /></requestFiltering></security></system.webServer></configuration>')\"",
     "start": "node dist/server.cjs",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
-    "@excalidraw/excalidraw": "^0.18.1",
+    "@excalidraw/excalidraw": "^0.17.6",
     "@tailwindcss/vite": "^4.1.14",
     "@vitejs/plugin-react": "^5.0.4",
     "dotenv": "^17.2.3",
@@ -19,6 +20,7 @@
     "jspdf": "^4.2.1",
     "jszip": "^3.10.1",
     "lucide-react": "^0.546.0",
+    "mammoth": "^1.12.0",
     "motion": "^12.23.24",
     "qrcode.react": "^4.2.0",
     "react": "^19.0.1",

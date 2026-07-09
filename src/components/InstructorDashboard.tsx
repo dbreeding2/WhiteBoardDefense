@@ -53,7 +53,7 @@ export default function InstructorDashboard({ wsRef, onNewSession }: InstructorD
   // Connect dedicated dashboard WebSocket
   useEffect(() => {
     const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const ws = new WebSocket(`${proto}//${window.location.host}`);
+    const ws = new WebSocket(`${proto}//${window.location.host}/ws`);
     dashWsRef.current = ws;
 
     ws.onopen = () => {
@@ -73,6 +73,22 @@ export default function InstructorDashboard({ wsRef, onNewSession }: InstructorD
     ws.onclose = () => setConnected(false);
 
     return () => ws.close();
+  }, []);
+
+  // Also poll REST on mount and every 10s as fallback
+  useEffect(() => {
+    const fetchSessions = async () => {
+      try {
+        const res = await fetch("/api/defense/dashboard-sessions");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.sessions?.length > 0) setSessions(data.sessions);
+        }
+      } catch {}
+    };
+    fetchSessions();
+    const interval = setInterval(fetchSessions, 10000);
+    return () => clearInterval(interval);
   }, []);
 
   // Tick every 10s to update elapsed times
@@ -111,7 +127,7 @@ export default function InstructorDashboard({ wsRef, onNewSession }: InstructorD
             </span>
           </div>
           <p className="text-white/40 text-sm">
-            {activeSessions.length} active {activeSessions.length === 1 ? "session" : "sessions"} · {completedSessions.length} completed
+            {activeSessions.length} active {activeSessions.length === 1 ? "session" : "sessions"} . {completedSessions.length} completed
           </p>
         </div>
         <button
@@ -178,7 +194,7 @@ export default function InstructorDashboard({ wsRef, onNewSession }: InstructorD
                           {session.studentName || "Student"}
                         </div>
                         <div className="text-white/40 text-xs truncate max-w-[180px]">
-                          {session.paperTitle || "Untitled"} · {session.courseCode || "—"}
+                          {session.paperTitle || "Untitled"} . {session.courseCode || "--"}
                         </div>
                       </div>
                       <span className="font-mono text-[10px] text-white/30 bg-white/5 px-2 py-0.5 rounded border border-white/8">
@@ -207,18 +223,19 @@ export default function InstructorDashboard({ wsRef, onNewSession }: InstructorD
                       <span className="flex items-center gap-1">
                         <Clock className="w-3 h-3" /> {duration(session.startedAt)}
                       </span>
-                      <span>· Active {elapsed(session.lastActivity)}</span>
+                      <span>. Active {elapsed(session.lastActivity)}</span>
                     </div>
 
                     {/* Actions */}
                     <div className="flex gap-2">
                       <button
                         onClick={() => copyLink(session.sessionId)}
+                        title={`Copy student link for session ${session.sessionId}`}
                         className="flex-1 flex items-center justify-center gap-1.5 text-[11px] font-semibold border border-white/10 hover:bg-white/5 text-white/60 hover:text-white py-1.5 rounded-lg transition"
                       >
                         {copiedId === session.sessionId
-                          ? <><CheckCircle className="w-3 h-3 text-emerald-400" /> Copied!</>
-                          : <><Copy className="w-3 h-3" /> Copy Link</>}
+                          ? <><CheckCircle className="w-3 h-3 text-emerald-400" /> Copied! ({session.sessionId})</>
+                          : <><Copy className="w-3 h-3" /> Copy Link ({session.sessionId})</>}
                       </button>
                       <button
                         onClick={() => openSession(session.sessionId)}
@@ -259,7 +276,7 @@ export default function InstructorDashboard({ wsRef, onNewSession }: InstructorD
                     {session.studentName || "Student"}
                   </span>
                   <span className="text-white/25 text-xs truncate block">
-                    {session.paperTitle} · {session.courseCode}
+                    {session.paperTitle} . {session.courseCode}
                   </span>
                 </div>
                 <span className="text-white/25 text-xs font-mono">{session.sessionId}</span>
@@ -275,7 +292,7 @@ export default function InstructorDashboard({ wsRef, onNewSession }: InstructorD
         <p className="text-white/30 text-xs">
           <span className="text-white/50 font-semibold">Dashboard URL:</span>{" "}
           <span className="font-mono">{window.location.origin}/?dashboard=true</span>
-          {" "}· Bookmark this to return directly to the dashboard.
+          {" "}. Bookmark this to return directly to the dashboard.
         </p>
       </div>
     </div>

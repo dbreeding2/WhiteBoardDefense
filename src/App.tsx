@@ -5,10 +5,11 @@ import ReviewQuestions from "./components/ReviewQuestions";
 import DefenseSession from "./components/DefenseSession";
 import FollowUpChat from "./components/FollowUpChat";
 import ReportViewer from "./components/ReportViewer";
+import InstructorDashboard from "./components/InstructorDashboard";
 import { FileEdit, Sparkles, Monitor, AppWindow, UserCheck, ShieldAlert } from "lucide-react";
 
 export default function App() {
-  const [currentStage, setCurrentStage] = useState<'setup' | 'review' | 'session' | 'followup' | 'report'>('setup');
+  const [currentStage, setCurrentStage] = useState<'dashboard' | 'setup' | 'review' | 'session' | 'followup' | 'report'>('setup');
   
   // Student Metadata
   const [studentName, setStudentName] = useState("");
@@ -60,11 +61,48 @@ export default function App() {
     return Math.random().toString(36).substring(2, 8).toUpperCase();
   };
 
-  // Initialize and handle Route parameters for tablet scan-in
+  // If student, poll REST endpoint for questions until real ones arrive
+  useEffect(() => {
+    if (role !== 'student' || !sessionId) return;
+
+    let attempts = 0;
+    const maxAttempts = 10;
+    const pollQuestions = async () => {
+      if (attempts >= maxAttempts) return;
+      attempts++;
+      try {
+        const res = await fetch(`/api/defense/session-questions/${sessionId}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.questions && data.questions.length > 0) {
+            setQuestions(data.questions);
+            if (data.studentName) setStudentName(data.studentName);
+            if (data.paperTitle)  setPaperTitle(data.paperTitle);
+            if (data.courseName)  setCourseName(data.courseName);
+            return; // Got real questions -- stop polling
+          }
+        }
+      } catch (err) {
+        console.warn("Question poll failed:", err);
+      }
+      // Retry with backoff: 2s, 3s, 4s...
+      setTimeout(pollQuestions, 2000 + attempts * 1000);
+    };
+
+    // Start polling after 1.5s to give WebSocket a chance first
+    const timer = setTimeout(pollQuestions, 1500);
+    return () => clearTimeout(timer);
+  }, [role, sessionId]);
   useEffect(() => {
     const queryParams = new URLSearchParams(window.location.search);
     const urlSessionId = queryParams.get("sessionId");
     const urlRole = queryParams.get("role") as 'student' | 'instructor' | 'both' | null;
+    const isDashboard = queryParams.get("dashboard") === "true";
+
+    if (isDashboard) {
+      setCurrentStage('dashboard');
+      return;
+    }
 
     if (urlSessionId) {
       setSessionId(urlSessionId);
@@ -89,6 +127,18 @@ export default function App() {
     }
   }, []);
 
+  // Broadcast stage changes to dashboard
+  const broadcastStage = (stage: string) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({
+        type: "session_stage_update",
+        sessionId,
+        role,
+        data: { stage },
+      }));
+    }
+  };
+
   // Establish WebSocket sync channel
   useEffect(() => {
     if (!sessionId) return;
@@ -107,6 +157,18 @@ export default function App() {
         role,
         data: {}
       }));
+      // If student, request a question sync from the instructor after a short delay
+      if (role === 'student') {
+        setTimeout(() => {
+          socket.send(JSON.stringify({ type: "request_sync", sessionId, role, data: {} }));
+        }, 1500);
+        setTimeout(() => {
+          socket.send(JSON.stringify({ type: "request_sync", sessionId, role, data: {} }));
+        }, 4000);
+        setTimeout(() => {
+          socket.send(JSON.stringify({ type: "request_sync", sessionId, role, data: {} }));
+        }, 8000);
+      }
     };
 
     socket.onmessage = (event) => {
@@ -164,11 +226,30 @@ export default function App() {
           setAssessment(data.assessment);
           setCurrentStage("report");
         } else if (type === "sync_questions") {
-          // Instructor is broadcasting the real questions — replace fallbacks
+          // Instructor is broadcasting the real questions -- replace fallbacks
           setQuestions(data.questions);
           if (data.studentName) setStudentName(data.studentName);
           if (data.paperTitle)  setPaperTitle(data.paperTitle);
           if (data.courseName)  setCourseName(data.courseName);
+        } else if (type === "request_sync") {
+          // Student is requesting questions -- if we're the instructor and have questions, send them
+          if (
+            role !== "student" &&
+            questionsRef.current.length > 0 &&
+            wsRef.current?.readyState === WebSocket.OPEN
+          ) {
+            wsRef.current.send(JSON.stringify({
+              type: "sync_questions",
+              sessionId,
+              role,
+              data: {
+                questions: questionsRef.current,
+                studentName: studentNameRef.current,
+                paperTitle: paperTitleRef.current,
+                courseName: courseNameRef.current,
+              },
+            }));
+          }
         }
       } catch (err) {
         console.error("Error parsing sync packet:", err);
@@ -326,6 +407,7 @@ export default function App() {
   const handleReviewConfirmed = (confirmedQuestions: DefenseQuestion[]) => {
     setQuestions(confirmedQuestions);
     setCurrentStage('session');
+    broadcastStage('session');
 
     // Broadcast real questions to any student already waiting in the session room
     // Small delay to ensure the WebSocket is in the session stage before sending
@@ -344,9 +426,22 @@ export default function App() {
         }));
       }
     };
-    // Broadcast twice — once after 1s, again after 3s to catch late-joining students
+    // Broadcast twice -- once after 1s, again after 3s to catch late-joining students
     setTimeout(broadcastQuestions, 1000);
     setTimeout(broadcastQuestions, 3000);
+
+    // Also publish to REST store so students can poll regardless of WebSocket timing
+    fetch("/api/defense/session-questions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId,
+        questions: confirmedQuestions,
+        studentName,
+        paperTitle,
+        courseName,
+      }),
+    }).catch((err) => console.warn("Failed to publish session questions:", err));
   };
 
   const handleSaveSnapshot = (idx: number, b64: string) => {
@@ -355,6 +450,15 @@ export default function App() {
       copy[idx] = b64;
       return copy;
     });
+    // Send latest snapshot thumbnail to dashboard
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({
+        type: "snapshot_update",
+        sessionId,
+        role,
+        data: { thumbnail: `data:image/png;base64,${b64}` },
+      }));
+    }
   };
 
   const handleReset = () => {
@@ -414,22 +518,36 @@ export default function App() {
             )}
             <div className="h-10 w-[1px] bg-white/10"></div>
             
-            {/* Context Workspace Role Selector */}
-            <div className="flex items-center bg-white/5 p-1 border border-white/10 rounded-lg text-xs">
-              <span className="text-[10px] uppercase text-white/40 tracking-widest font-medium hidden sm:inline mr-2 ml-1">Sim:</span>
-              <select
-                id="role-switch-selector"
-                value={role}
-                onChange={(e) => {
-                  setRole(e.target.value as 'both' | 'student' | 'instructor');
-                }}
-                className="bg-transparent border-none rounded text-[11px] text-[#E0E0E0] outline-none p-1 font-mono uppercase focus:ring-0 cursor-pointer"
+            {/* Context Workspace Role Selector -- hidden for students who joined via link */}
+            {role !== 'student' ? (
+              <div className="flex items-center bg-white/5 p-1 border border-white/10 rounded-lg text-xs">
+                <span className="text-[10px] uppercase text-white/40 tracking-widest font-medium hidden sm:inline mr-2 ml-1">Sim:</span>
+                <select
+                  id="role-switch-selector"
+                  value={role}
+                  onChange={(e) => {
+                    setRole(e.target.value as 'both' | 'student' | 'instructor');
+                  }}
+                  className="bg-transparent border-none rounded text-[11px] text-[#E0E0E0] outline-none p-1 font-mono uppercase focus:ring-0 cursor-pointer"
+                >
+                  <option value="both" className="bg-[#111] text-[#E0E0E0]">Combined View</option>
+                  <option value="student" className="bg-[#111] text-[#E0E0E0]">Student View</option>
+                  <option value="instructor" className="bg-[#111] text-[#E0E0E0]">Instructor View</option>
+                </select>
+              </div>
+            ) : (
+              <div className="flex items-center bg-white/5 px-3 py-1.5 border border-white/10 rounded-lg">
+                <span className="text-[10px] uppercase text-white/40 tracking-widest font-mono">Student View</span>
+              </div>
+            )}
+            {role === 'instructor' && (
+              <button
+                onClick={() => setCurrentStage('dashboard')}
+                className="flex items-center gap-1.5 bg-white/5 border border-white/10 hover:bg-white/10 text-white/60 hover:text-white px-3 py-1.5 rounded-lg text-[11px] font-mono uppercase tracking-wider transition"
               >
-                <option value="both" className="bg-[#111] text-[#E0E0E0]">Combined View</option>
-                <option value="student" className="bg-[#111] text-[#E0E0E0]">Student View</option>
-                <option value="instructor" className="bg-[#111] text-[#E0E0E0]">Instructor View</option>
-              </select>
-            </div>
+                <Monitor className="w-3 h-3" /> Dashboard
+              </button>
+            )}
           </div>
         </div>
 
@@ -462,6 +580,31 @@ export default function App() {
       <main className="flex-1 max-w-7xl w-full mx-auto p-6 md:p-8">
         
         {/* Dynamic stage route router mapping */}
+        {currentStage === 'dashboard' && (
+          <InstructorDashboard
+            wsRef={wsRef}
+            appUrl={window.location.origin}
+            onNewSession={() => {
+              // Full reset with a fresh session ID so new session doesn't collide with previous
+              const newId = generateSessionId();
+              setStudentName("");
+              setPaperTitle("");
+              setCourseName("");
+              setPastedText("");
+              setQuestions([]);
+              setAllQuestionStrokes(Array(8).fill([]));
+              setSnapshots(Array(8).fill(""));
+              setChatHistory([]);
+              setAssessment(null);
+              setSessionId(newId);
+              setCurrentQuestionIndex(0);
+              setActiveWorkspaceTab('diagram');
+              setCurrentStage('setup');
+              console.log(`[WhiteboardDefense] New session started: ${newId}`);
+            }}
+          />
+        )}
+
         {currentStage === 'setup' && (
           <SetupForm 
             onSetupComplete={handleSetupComplete} 
@@ -561,8 +704,8 @@ export default function App() {
       {/* Global Academic footer */}
       <footer className="bg-black py-8 text-center border-t border-white/10 text-[11px] font-mono text-white/30">
         <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <span className="tracking-widest uppercase text-[10px]">🛡️ Whiteboard Integrity Verification Protocol v1.4.2</span>
-          <span>© 2026 University Academic Honor Integrity Board. Powered by Gemini Core.</span>
+          <span className="tracking-widest uppercase text-[10px]">?? Whiteboard Integrity Verification Protocol v1.4.2</span>
+          <span>? 2026 University Academic Honor Integrity Board. Powered by Gemini Core.</span>
         </div>
       </footer>
     </div>

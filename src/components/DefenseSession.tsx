@@ -55,7 +55,13 @@ export default function DefenseSession({
   onProgressToChat,
 }: DefenseSessionProps) {
   const [showQR, setShowQR] = useState(false);
+  const [syncToast, setSyncToast] = useState(false);
   const [diagramSuggested, setDiagramSuggested] = useState(false);
+
+  const showSyncToast = () => {
+    setSyncToast(true);
+    setTimeout(() => setSyncToast(false), 2500);
+  };
   const currentQuestion = questions[currentQuestionIndex];
 
   const shareUrl = `${window.location.origin}/?sessionId=${sessionId}&role=student`;
@@ -126,7 +132,7 @@ export default function DefenseSession({
               ID: <span className="text-white font-bold">{sessionId}</span>
             </span>
           </div>
-          <h2 className="text-xl font-serif italic text-white/95">Stage 3 — Whiteboard In-Depth Probing</h2>
+          <h2 className="text-xl font-serif italic text-white/95">Stage 3 -- Whiteboard In-Depth Probing</h2>
           <p className="text-xs text-white/40">
             Student answers questions by drawing, typing, or constructing a network diagram on the live board.
           </p>
@@ -202,13 +208,12 @@ export default function DefenseSession({
                     key={q.id}
                     type="button"
                     onClick={() => {
-                      if (role === "student") {
-                        alert("Students are in sync mode. Only instructors can navigate slides.");
-                        return;
-                      }
+                      if (role === "student") { showSyncToast(); return; }
                       changeSlide(idx);
                     }}
                     className={`w-full text-left p-2.5 rounded-lg border text-xs font-sans transition flex items-center gap-2 ${
+                      role === "student" ? "cursor-default" : ""
+                    } ${
                       isActive
                         ? "bg-indigo-600/10 border-indigo-500/40 text-indigo-400 font-semibold"
                         : "bg-black/30 border-white/5 hover:border-white/20 text-white/70 hover:text-white"
@@ -238,12 +243,20 @@ export default function DefenseSession({
             </div>
           </div>
 
+          {/* Sync mode toast for students */}
+          {syncToast && (
+            <div className="bg-indigo-950/60 border border-indigo-500/30 rounded-xl px-4 py-2.5 flex items-center gap-2 text-xs text-indigo-300">
+              <i className="ti ti-lock" style={{fontSize:"13px"}} />
+              Instructor controls navigation
+            </div>
+          )}
+
           <div className="bg-amber-950/20 border border-amber-900/40 rounded-xl p-4 space-y-2 text-left">
             <h4 className="text-[11px] font-bold text-amber-400 uppercase tracking-widest flex items-center gap-1 font-mono">
               <AlertCircle className="w-3.5 h-3.5 text-amber-500" /> Instructor Pro Tip
             </h4>
             <p className="text-[11px] text-white/50 leading-relaxed">
-              Questions marked with a <Network className="w-3 h-3 inline text-indigo-400/50" /> icon are topology or architecture questions — switch to the <span className="text-indigo-400">Diagram Board</span> tab and have the student construct the network from components to verify genuine understanding.
+              Questions marked with a <Network className="w-3 h-3 inline text-indigo-400/50" /> icon are topology or architecture questions -- switch to the <span className="text-indigo-400">Diagram Board</span> tab and have the student construct the network from components to verify genuine understanding.
             </p>
           </div>
         </div>
@@ -258,7 +271,7 @@ export default function DefenseSession({
                 QUESTION #{currentQuestion.num}
               </span>
               <span className="text-xs font-mono font-bold text-white/40 uppercase tracking-widest">
-                — {currentQuestion.focusConcept}
+                -- {currentQuestion.focusConcept}
               </span>
               {shouldSuggestDiagram(currentQuestion.focusConcept) && (
                 <span className="ml-auto flex items-center gap-1 text-[10px] text-indigo-400/70 font-mono">
@@ -276,7 +289,7 @@ export default function DefenseSession({
             <div className="bg-indigo-950/40 border border-indigo-500/30 rounded-xl px-4 py-3 flex items-center gap-3">
               <Network className="w-4 h-4 text-indigo-400 shrink-0" />
               <p className="text-xs text-indigo-300 flex-1">
-                This is a topology/architecture question. The <strong>Diagram Board</strong> lets the student construct the network from components — a stronger integrity check than freehand drawing.
+                This is a topology/architecture question. The <strong>Diagram Board</strong> lets the student construct the network from components -- a stronger integrity check than freehand drawing.
               </p>
               <button
                 type="button"
@@ -290,7 +303,7 @@ export default function DefenseSession({
                 onClick={() => setDiagramSuggested(false)}
                 className="shrink-0 text-white/20 hover:text-white/40 text-xs font-mono"
               >
-                ✕
+                x
               </button>
             </div>
           )}

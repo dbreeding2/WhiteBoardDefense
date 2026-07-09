@@ -9,10 +9,10 @@ dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
-const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3456;
+const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 
-app.use(express.json({ limit: "1mb" }));
-app.use(express.urlencoded({ extended: true, limit: "1mb" }));
+app.use(express.json({ limit: "100mb" }));
+app.use(express.urlencoded({ extended: true, limit: "100mb" }));
 
 // ─── AI Provider Configuration ────────────────────────────────────────────────
 const AI_PROVIDER = (process.env.AI_PROVIDER || "openai").toLowerCase();
@@ -44,7 +44,7 @@ async function openaiChat(
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       console.log(`[OpenAI] Attempt ${attempt}/${maxRetries}...`);
-      const body: any = { model: OPENAI_MODEL, messages, max_tokens: 8192, temperature: 0.2 };
+      const body: any = { model: OPENAI_MODEL, messages, max_tokens: 8192 };
       if (forceJson) body.response_format = { type: "json_object" };
       const res = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
@@ -74,7 +74,7 @@ async function claudeChat(
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       console.log(`[Claude] Attempt ${attempt}/${maxRetries}...`);
-      const body: any = { model: CLAUDE_MODEL, max_tokens: 4096, messages, temperature: 0.2 };
+      const body: any = { model: CLAUDE_MODEL, max_tokens: 4096, messages };
       if (systemPrompt) body.system = systemPrompt;
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
@@ -122,7 +122,7 @@ async function geminiChat(
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [{ parts }],
-          generationConfig: { responseMimeType: "application/json", temperature: 0.2 },
+          generationConfig: { responseMimeType: "application/json" },
         }),
       });
       if (!res.ok) throw new Error(`Gemini HTTP ${res.status}: ${await res.text()}`);
@@ -195,7 +195,10 @@ function parseJsonResponse<T>(raw: string): T {
 const wss = new WebSocketServer({ noServer: true });
 const sessions = new Map<string, Set<{ ws: WebSocket; role: "student" | "instructor" }>>();
 
-// ─── Session registry for dashboard ──────────────────────────────────────────
+// Dashboard clients — separate set of connected dashboard browsers
+const dashboardClients = new Set<WebSocket>();
+
+// Session metadata store for dashboard
 interface SessionMeta {
   sessionId: string;
   studentName: string;
@@ -203,51 +206,67 @@ interface SessionMeta {
   courseCode: string;
   currentQuestion: number;
   totalQuestions: number;
-  stage: "setup" | "session" | "followup" | "report" | "complete";
+  stage: string;
   startedAt: number;
   lastActivity: number;
-  thumbnail: string; // base64 snapshot of latest diagram
+  thumbnail: string;
 }
-const sessionRegistry = new Map<string, SessionMeta>();
-const dashboardClients = new Set<WebSocket>();
+const sessionMetas = new Map<string, SessionMeta>();
 
 function broadcastDashboard() {
   const payload = JSON.stringify({
     type: "dashboard_update",
-    sessions: Array.from(sessionRegistry.values()),
+    sessions: Array.from(sessionMetas.values()),
   });
-  for (const client of dashboardClients) {
-    if (client.readyState === WebSocket.OPEN) client.send(payload);
+  for (const ws of dashboardClients) {
+    if (ws.readyState === WebSocket.OPEN) ws.send(payload);
   }
 }
 
 wss.on("connection", (ws: WebSocket) => {
   let joinedSessionId: string | null = null;
   let clientRole: "student" | "instructor" | null = null;
-  let isDashboard = false;
 
   ws.on("message", (message: string) => {
     try {
       const payload = JSON.parse(message);
       const { type, sessionId, role } = payload;
 
-      // ── Dashboard client ────────────────────────────────────────────────────
+      // Dashboard client registration
       if (type === "dashboard_join") {
-        isDashboard = true;
         dashboardClients.add(ws);
+        // Send current state immediately
         ws.send(JSON.stringify({
           type: "dashboard_update",
-          sessions: Array.from(sessionRegistry.values()),
+          sessions: Array.from(sessionMetas.values()),
         }));
         return;
       }
 
-      // ── Session join ────────────────────────────────────────────────────────
       if (type === "join") {
         joinedSessionId = sessionId;
         clientRole = role;
         if (!sessions.has(sessionId)) sessions.set(sessionId, new Set());
         sessions.get(sessionId)!.add({ ws, role });
+
+        // Initialize session metadata if instructor
+        if (role === "instructor" && !sessionMetas.has(sessionId)) {
+          const stored = sessionQuestionStore.get(sessionId);
+          sessionMetas.set(sessionId, {
+            sessionId,
+            studentName: stored?.studentName || "",
+            paperTitle: stored?.paperTitle || "",
+            courseCode: stored?.courseName || "",
+            currentQuestion: 0,
+            totalQuestions: stored?.questions?.length || 8,
+            stage: "session",
+            startedAt: Date.now(),
+            lastActivity: Date.now(),
+            thumbnail: "",
+          });
+          broadcastDashboard();
+        }
+
         broadcastToSession(sessionId, ws, {
           type: "system_message",
           text: `${role === "student" ? "Student" : "Instructor"} joined session ${sessionId}.`,
@@ -256,38 +275,30 @@ wss.on("connection", (ws: WebSocket) => {
         return;
       }
 
-      // ── Session metadata update (from App.tsx) ─────────────────────────────
-      if (type === "session_meta_update" && sessionId) {
-        const existing = sessionRegistry.get(sessionId) || {
-          sessionId,
-          studentName: "",
-          paperTitle: "",
-          courseCode: "",
-          currentQuestion: 0,
-          totalQuestions: 8,
-          stage: "session",
-          startedAt: Date.now(),
-          lastActivity: Date.now(),
-          thumbnail: "",
-        };
-        sessionRegistry.set(sessionId, {
-          ...existing,
-          ...payload.meta,
-          lastActivity: Date.now(),
-        });
-        broadcastDashboard();
-        return;
-      }
+      // Track session metadata updates from instructor
+      if (sessionId && sessionMetas.has(sessionId)) {
+        const meta = sessionMetas.get(sessionId)!;
+        meta.lastActivity = Date.now();
 
-      // ── Snapshot thumbnail update ──────────────────────────────────────────
-      if (type === "snapshot_update" && sessionId) {
-        const existing = sessionRegistry.get(sessionId);
-        if (existing) {
-          existing.thumbnail = payload.thumbnail || "";
-          existing.lastActivity = Date.now();
+        if (type === "slide_change" && payload.data?.idx !== undefined) {
+          meta.currentQuestion = payload.data.idx;
           broadcastDashboard();
         }
-        return;
+        if (type === "session_stage_update" && payload.data?.stage) {
+          meta.stage = payload.data.stage;
+          broadcastDashboard();
+        }
+        if (type === "snapshot_update" && payload.data?.thumbnail) {
+          meta.thumbnail = payload.data.thumbnail;
+          broadcastDashboard();
+        }
+        if (type === "sync_questions" && payload.data?.questions) {
+          meta.studentName = payload.data.studentName || meta.studentName;
+          meta.paperTitle = payload.data.paperTitle || meta.paperTitle;
+          meta.courseCode = payload.data.courseName || meta.courseCode;
+          meta.totalQuestions = payload.data.questions.length;
+          broadcastDashboard();
+        }
       }
 
       if (sessionId && type) broadcastToSession(sessionId, ws, payload);
@@ -297,7 +308,9 @@ wss.on("connection", (ws: WebSocket) => {
   });
 
   ws.on("close", () => {
-    if (isDashboard) { dashboardClients.delete(ws); return; }
+    // Remove from dashboard clients
+    dashboardClients.delete(ws);
+
     if (joinedSessionId && sessions.has(joinedSessionId)) {
       const set = sessions.get(joinedSessionId)!;
       for (const client of set) {
@@ -305,17 +318,6 @@ wss.on("connection", (ws: WebSocket) => {
       }
       if (set.size === 0) {
         sessions.delete(joinedSessionId);
-        const meta = sessionRegistry.get(joinedSessionId);
-        if (meta) {
-          meta.stage = "complete";
-          sessionRegistry.set(joinedSessionId, meta);
-          broadcastDashboard();
-          // Remove from registry after 30 minutes
-          setTimeout(() => {
-            sessionRegistry.delete(joinedSessionId!);
-            broadcastDashboard();
-          }, 30 * 60 * 1000);
-        }
       } else {
         broadcastToSession(joinedSessionId, null, {
           type: "system_message",
@@ -343,6 +345,55 @@ server.on("upgrade", (request, socket, head) => {
   if (pathname === "/ws") {
     wss.handleUpgrade(request, socket, head, (ws) => wss.emit("connection", ws, request));
   }
+});
+
+// ─── In-memory session question store ────────────────────────────────────────
+// Instructor publishes questions here; student polls to retrieve them.
+const sessionQuestionStore = new Map<string, {
+  questions: any[];
+  studentName: string;
+  paperTitle: string;
+  courseName: string;
+  updatedAt: number;
+}>();
+
+// Instructor pushes questions for a session
+app.post("/api/defense/session-questions", (req, res) => {
+  const { sessionId, questions, studentName, paperTitle, courseName } = req.body;
+  if (!sessionId || !questions) return res.status(400).json({ error: "sessionId and questions required" });
+  sessionQuestionStore.set(sessionId, {
+    questions, studentName, paperTitle, courseName, updatedAt: Date.now()
+  });
+
+  // Create or update dashboard session metadata
+  const existing = sessionMetas.get(sessionId);
+  sessionMetas.set(sessionId, {
+    sessionId,
+    studentName: studentName || existing?.studentName || "",
+    paperTitle: paperTitle || existing?.paperTitle || "",
+    courseCode: courseName || existing?.courseCode || "",
+    currentQuestion: existing?.currentQuestion || 0,
+    totalQuestions: questions.length,
+    stage: existing?.stage || "session",
+    startedAt: existing?.startedAt || Date.now(),
+    lastActivity: Date.now(),
+    thumbnail: existing?.thumbnail || "",
+  });
+  broadcastDashboard();
+
+  return res.json({ ok: true });
+});
+
+// Student polls for questions
+app.get("/api/defense/session-questions/:sessionId", (req, res) => {
+  const data = sessionQuestionStore.get(req.params.sessionId);
+  if (!data) return res.status(404).json({ error: "Session not found" });
+  return res.json(data);
+});
+
+// Dashboard polls for all active sessions
+app.get("/api/defense/dashboard-sessions", (_req, res) => {
+  return res.json({ sessions: Array.from(sessionMetas.values()) });
 });
 
 // ─── API: Generate 8 defense questions ───────────────────────────────────────
@@ -559,16 +610,11 @@ app.post("/api/defense/evaluate-diagram", async (req, res) => {
 });
 
 // ─── API: Defense chat (multimodal) ──────────────────────────────────────────
-app.post("/api/defense/chat", express.json({ limit: "50mb" }), async (req, res) => {
+app.post("/api/defense/chat", async (req, res) => {
   const {
     chatHistory, snapshots, studentName, paperTitle,
     courseName, questions, pastedText, conclude, activityType,
   } = req.body;
-
-    // Count AI turns in history to enforce 4 follow-up question limit
-    const aiTurns = (chatHistory || []).filter((m: any) => m.role === "assistant").length;
-    const autoFinalize = aiTurns >= 4;
-    const shouldConclude = conclude || autoFinalize;
 
   const activityName = activityType || "Research Paper";
 
@@ -605,17 +651,10 @@ CRITICAL INTEGRITY DIRECTIVE:
 4. Reference whiteboard snapshots explicitly when discussing them (e.g. "On your drawing for Question 1...").
 Keep responses concise, focused, and academically professional.
 
-ORAL DEFENSE FORMAT — CRITICAL:
-This is a TEXT-ONLY oral examination phase. The student can only TYPE responses — they have NO drawing tools, diagram builder, or whiteboard available here.
-- NEVER ask the student to draw, sketch, diagram, create a flowchart, or provide any visual representation.
-- NEVER say "can you draw", "sketch", "diagram", "illustrate", "show visually", or any similar visual instruction.
-- Only ask questions that can be answered in writing — explain, describe, justify, compare, define, walk me through, what would happen if, etc.
-- If you want to probe visual understanding, ask them to DESCRIBE or EXPLAIN in words what they would draw, not to actually draw it.
-
-${shouldConclude ? `
-CRITICAL DIRECTIVE: ${autoFinalize ? "The defense has reached the maximum of 4 follow-up questions." : "The instructor has clicked 'Finalize/Conclude Defense'."} 
+${conclude ? `
+CRITICAL DIRECTIVE: The instructor has clicked 'Finalize/Conclude Defense'.
 Provide final closing feedback, then append a holistic assessment EXACTLY inside <assessment>...</assessment> tags.
-Customise the categories list to Submission Type "${activityType}":
+Customise the categories list to Submission Type "${activityName}":
 - Paper/Article: ["Technical Mastery","Whiteboard Synthesis","Integrity Verification"]
 - Project/Codebase: ["System Architecture","Software Implementation Logic","Integrity Verification"]
 - Presentation Slide Deck: ["Command of Slide Claims","Visual Diagrammatic Verification","Integrity Verification"]
@@ -623,29 +662,15 @@ Customise the categories list to Submission Type "${activityType}":
 
 JSON schema inside <assessment>:
 {
-  "overallScore": <integer 1-100, calculated honestly — do NOT use 82>,
+  "overallScore": 82,
   "suspicionLevel": "Low" | "Medium" | "High",
-  "suspicionReasoning": "<your reasoning>",
-  "categories": [{ "name": "<category name>", "score": <integer 1-10>, "feedback": "<specific feedback>" }],
-  "keyFindings": ["<specific strength observed>"],
-  "gapsIdentified": ["<specific gap observed>"],
-  "recommendedGrade": "<letter grade based on actual performance>"
+  "suspicionReasoning": "...",
+  "categories": [{ "name": "...", "score": 8, "feedback": "..." }],
+  "keyFindings": ["..."],
+  "gapsIdentified": ["..."],
+  "recommendedGrade": "A-"
 }
-` : `Ask the next follow-up question. This is follow-up ${aiTurns + 1} of 4 maximum. Follow these rules STRICTLY:
-
-TOPIC DIVERSITY — CRITICAL:
-1. Review the full transcript. Identify which topics have already been probed. Do NOT ask another question on the same topic if it has already been covered once.
-2. Check the original 8 defense questions. Identify which ones had significant gaps or missing visual answers. Target those FIRST before anything else.
-3. Never ask a variation of a question already asked. Each follow-up must probe a genuinely different concept.
-4. Rotate through: technical implementation details, security architecture specifics, compliance requirements, troubleshooting scenarios, design trade-offs.
-5. Only return to process/training/communication topics if ALL technical and architectural gaps have been fully exhausted.
-
-PRIORITY ORDER:
-1. Questions where student gave no diagram when one was explicitly required
-2. Questions with vague or technically shallow answers
-3. New technical angles (specific protocols, CLI, failure scenarios, hardware specifics)
-4. Design trade-offs and alternative approaches
-5. Process and training topics ONLY as a last resort`}
+` : "Ask the next challenging follow-up question targeting areas of ambiguity."}
 `;
 
     const base64Images: string[] = [];
@@ -656,9 +681,9 @@ PRIORITY ORDER:
     }
 
     const userText = `${systemPrompt}\n\nInterview transcript so far:\n${printedHistory}\n\nEvaluator's active prompt: ${
-      shouldConclude
+      conclude
         ? "Finalize the defense, summarize, and provide the assessment tags."
-        : `Evaluate the response, check whiteboard snapshots, and ask follow-up question ${aiTurns + 1} of 4.`
+        : "Evaluate the response, check whiteboard snapshots, and ask the next probing question."
     }`;
 
     const aiResponseText =

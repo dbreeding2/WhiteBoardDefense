@@ -654,6 +654,13 @@ CURRENT POSITION:
 - Student has answered this question ${roundOnCurrentQ - 1} time(s) so far.
 - Next question will be Q${nextQIdx + 1}: "${nextQ?.questionText || "done"}"
 
+IMPORTANT CONTEXT:
+- The whiteboard/diagram phase is COMPLETE. All diagrams have already been drawn and captured as snapshots.
+- This is the ORAL defense phase. The student answers verbally in text only -- no whiteboard is available.
+- Do NOT ask the student to "sketch", "draw", "illustrate on the whiteboard", or "diagram" anything.
+- Instead ask them to EXPLAIN, DESCRIBE, JUSTIFY, or WALK YOU THROUGH concepts verbally.
+- You may reference their previously captured diagram snapshots (e.g. "In your earlier diagram...") but do not ask for new ones.
+
 STRICT RULES -- follow exactly:
 1. Ask EXACTLY ONE question per response. Never list multiple questions.
 2. Maximum 3 sentences per response. Be brief and direct.

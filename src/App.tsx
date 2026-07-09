@@ -332,10 +332,28 @@ export default function App() {
       }));
 
       setQuestions(generated);
-      setCurrentStage('review');
+
+      if (mode === 'ai') {
+        // AI mode: skip review, go straight to session and publish questions immediately
+        setCurrentStage('session');
+        broadcastStage('session');
+        await fetch("/api/defense/session-questions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionId,
+            questions: generated,
+            studentName: name,
+            paperTitle: title,
+            courseName: course,
+          }),
+        });
+      } else {
+        // Instructor mode: show review/diagnostics screen first
+        setCurrentStage('review');
+      }
     } catch (err: any) {
       alert(`API Error generating questions: ${err.message}. Resilient falling back to standard template questions.`);
-      // Generate standard sample questions to guarantee usability if key is missing or invalid
       const sampleQs: DefenseQuestion[] = [
         { id: "s1", num: 1, questionText: `Draw the fundamental system block diagram layout comparing your custom pipeline constraints vs typical baselines described in Section 2.`, focusConcept: "Pipeline Constrains" },
         { id: "s2", num: 2, questionText: `Sketch the complete mathematical proof or equation formulation supporting your core hypothesis bounds in Section 3.`, focusConcept: "Hypothesis Bounds" },
@@ -347,7 +365,7 @@ export default function App() {
         { id: "s8", num: 8, questionText: `Outline the overall lifecycle state machine comparing training loops, validations and testing execution times for model convergence.`, focusConcept: "Model Convergence" }
       ];
       setQuestions(sampleQs);
-      setCurrentStage('review');
+      setCurrentStage(mode === 'ai' ? 'session' : 'review');
     } finally {
       setIsLoading(false);
     }
@@ -684,6 +702,7 @@ export default function App() {
             activityType={activityType}
             assessmentMode={assessmentMode}
             questions={questions}
+            currentQuestionIndex={currentQuestionIndex}
           />
         )}
 
@@ -705,7 +724,7 @@ export default function App() {
       <footer className="bg-black py-8 text-center border-t border-white/10 text-[11px] font-mono text-white/30">
         <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <span className="tracking-widest uppercase text-[10px]">?? Whiteboard Integrity Verification Protocol v1.4.2</span>
-          <span>? 2026 University Academic Honor Integrity Board. Powered by Gemini Core.</span>
+          <span>2026 University Academic Honor Integrity Board. Powered by Whiteboard Defense.</span>
         </div>
       </footer>
     </div>

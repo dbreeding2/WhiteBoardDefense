@@ -14,7 +14,7 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 app.use(express.json({ limit: "100mb" }));
 app.use(express.urlencoded({ extended: true, limit: "100mb" }));
 
-// ─── AI Provider Configuration ────────────────────────────────────────────────
+// --- AI Provider Configuration ------------------------------------------------
 const AI_PROVIDER = (process.env.AI_PROVIDER || "openai").toLowerCase();
 
 const OPENAI_API_KEY  = process.env.OPENAI_API_KEY  || "";
@@ -35,7 +35,7 @@ if (AI_PROVIDER === "gemini" && !GEMINI_API_KEY) console.warn("[AI] WARNING: GEM
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// ─── OpenAI ───────────────────────────────────────────────────────────────────
+// --- OpenAI -------------------------------------------------------------------
 async function openaiChat(
   messages: { role: string; content: any }[],
   maxRetries = 3,
@@ -65,7 +65,7 @@ async function openaiChat(
   throw new Error("OpenAI retries exhausted.");
 }
 
-// ─── Claude ───────────────────────────────────────────────────────────────────
+// --- Claude -------------------------------------------------------------------
 async function claudeChat(
   messages: { role: string; content: any }[],
   systemPrompt: string | undefined,
@@ -99,7 +99,7 @@ async function claudeChat(
   throw new Error("Claude retries exhausted.");
 }
 
-// ─── Gemini ───────────────────────────────────────────────────────────────────
+// --- Gemini -------------------------------------------------------------------
 async function geminiChat(
   userPrompt: string,
   systemPrompt: string | undefined,
@@ -139,7 +139,7 @@ async function geminiChat(
   throw new Error("Gemini retries exhausted.");
 }
 
-// ─── Unified helpers ──────────────────────────────────────────────────────────
+// --- Unified helpers ----------------------------------------------------------
 async function generateText(userPrompt: string, systemPrompt?: string, forceJson = false): Promise<string> {
   if (AI_PROVIDER === "claude") {
     return claudeChat([{ role: "user", content: userPrompt }], systemPrompt);
@@ -191,11 +191,11 @@ function parseJsonResponse<T>(raw: string): T {
   return JSON.parse(cleaned) as T;
 }
 
-// ─── WebSocket setup ──────────────────────────────────────────────────────────
+// --- WebSocket setup ----------------------------------------------------------
 const wss = new WebSocketServer({ noServer: true });
 const sessions = new Map<string, Set<{ ws: WebSocket; role: "student" | "instructor" }>>();
 
-// Dashboard clients — separate set of connected dashboard browsers
+// Dashboard clients -- separate set of connected dashboard browsers
 const dashboardClients = new Set<WebSocket>();
 
 // Session metadata store for dashboard
@@ -347,7 +347,7 @@ server.on("upgrade", (request, socket, head) => {
   }
 });
 
-// ─── In-memory session question store ────────────────────────────────────────
+// --- In-memory session question store ----------------------------------------
 // Instructor publishes questions here; student polls to retrieve them.
 const sessionQuestionStore = new Map<string, {
   questions: any[];
@@ -396,7 +396,7 @@ app.get("/api/defense/dashboard-sessions", (_req, res) => {
   return res.json({ sessions: Array.from(sessionMetas.values()) });
 });
 
-// ─── API: Generate 8 defense questions ───────────────────────────────────────
+// --- API: Generate 8 defense questions ---------------------------------------
 app.post("/api/defense/generate-questions", async (req, res) => {
   const { studentName, paperTitle, courseName, pastedText, activityType } = req.body;
   const activityName = activityType || "Research Paper";
@@ -412,7 +412,7 @@ CRITICAL CONSTRAINT: Questions MUST be strictly grounded in the concrete topic, 
 - Do NOT introduce unrelated theoretical ideas or external formulas not mentioned in the text.
 - Mix DIAGRAM-oriented sketching challenges with deep CONCEPTUAL questions appropriate to the domain.
 - Reference specific named entities, terminology, systems, datasets, formulas, and results from the text.
-- Every question must be fully personalized to the specific content — no generic templates.
+- Every question must be fully personalized to the specific content -- no generic templates.
 
 Student Name: ${studentName || "N/A"}
 Submission Title: ${paperTitle}
@@ -445,7 +445,7 @@ Return a JSON object with a "questions" array containing EXACTLY 8 objects. Each
   }
 });
 
-// ─── API: Analyze document metadata ──────────────────────────────────────────
+// --- API: Analyze document metadata ------------------------------------------
 app.post("/api/defense/analyze-metadata", async (req, res) => {
   const { studentName, paperTitle, courseName, pastedText, activityType } = req.body;
   const activityName = activityType || "Research Paper";
@@ -556,7 +556,7 @@ Return a JSON object with these exact fields:
   }
 });
 
-// ─── API: Regenerate a single question ───────────────────────────────────────
+// --- API: Regenerate a single question ---------------------------------------
 app.post("/api/defense/regenerate-question", async (req, res) => {
   const { paperTitle, pastedText, currentQuestions, numToRegen, reviewNotes, activityType } = req.body;
   const activityName = activityType || "Research Paper";
@@ -594,7 +594,7 @@ Return a JSON object for the replacement question:
   }
 });
 
-// ─── API: Evaluate diagram (DiagramBuilder component) ────────────────────────
+// --- API: Evaluate diagram (DiagramBuilder component) ------------------------
 app.post("/api/defense/evaluate-diagram", async (req, res) => {
   const { prompt } = req.body as { prompt: string };
   if (!prompt) return res.status(400).json({ error: "prompt required" });
@@ -609,14 +609,24 @@ app.post("/api/defense/evaluate-diagram", async (req, res) => {
   }
 });
 
-// ─── API: Defense chat (multimodal) ──────────────────────────────────────────
+// --- API: Defense chat (multimodal) ------------------------------------------
 app.post("/api/defense/chat", async (req, res) => {
   const {
     chatHistory, snapshots, studentName, paperTitle,
     courseName, questions, pastedText, conclude, activityType,
+    currentQuestionIndex,
   } = req.body;
 
   const activityName = activityType || "Research Paper";
+  const totalQuestions = questions?.length || 8;
+  // Count only student messages to determine which question we're on
+  const studentTurns = (chatHistory || []).filter((m: any) => m.sender === "student").length;
+  // Each question gets 2 student turns (initial + follow-up) before advancing
+  const effectiveQIdx = Math.min(Math.floor(studentTurns / 2), totalQuestions - 1);
+  const roundOnCurrentQ = (studentTurns % 2) + 1; // 1 = first answer, 2 = follow-up answered
+  const currentQ = questions?.[effectiveQIdx];
+  const nextQIdx = Math.min(effectiveQIdx + 1, totalQuestions - 1);
+  const nextQ = questions?.[nextQIdx];
 
   try {
     const recentHistory = chatHistory || [];
@@ -627,51 +637,51 @@ app.post("/api/defense/chat", async (req, res) => {
       })
       .join("\n");
 
-    let questionsContext = "";
-    if (questions && Array.isArray(questions) && questions.length > 0) {
-      questionsContext =
-        "\n--- THE ORIGINAL DEFENSE QUESTIONS ASSIGNED FOR WHITEBOARD SOLUTIONS ---\n" +
-        questions.map((q: any) => `Question #${q.num} [Focus Concept: ${q.focusConcept || "N/A"}]:\n"${q.questionText}"`).join("\n\n") +
-        "\n----------------------------------------------------------------------\n";
-    }
+    const questionsContext = questions && Array.isArray(questions) && questions.length > 0
+      ? "\n--- ALL DEFENSE QUESTIONS ---\n" +
+        questions.map((q: any) => `Q${q.num} [${q.focusConcept || "N/A"}]: ${q.questionText}`).join("\n") +
+        "\n-----------------------------\n"
+      : "";
 
     const systemPrompt = `
-You are an expert academic examiner conducting a whiteboard defense interview follow-up.
-Student Name: ${studentName || "N/A"}
-Submission Title: ${paperTitle}
-Submission Type: ${activityName}
-Course Name: ${courseName || "N/A"}
+You are an expert academic examiner conducting a whiteboard defense oral interview.
+Student: ${studentName || "N/A"} | Submission: ${paperTitle} | Type: ${activityName} | Course: ${courseName || "N/A"}
 
 ${questionsContext}
 
-CRITICAL INTEGRITY DIRECTIVE:
-1. Verify that the student's whiteboard drawings/answers actually ALIGN with the assigned defense questions.
-2. If their responses do NOT match the specific questions asked, call them out clearly.
-3. Probe deeply to detect whether the student genuinely owns this work.
-4. Reference whiteboard snapshots explicitly when discussing them (e.g. "On your drawing for Question 1...").
-Keep responses concise, focused, and academically professional.
+CURRENT POSITION:
+- Question #${effectiveQIdx + 1} of ${totalQuestions}: "${currentQ?.questionText || "N/A"}"
+- Student has answered this question ${roundOnCurrentQ - 1} time(s) so far.
+- Next question will be Q${nextQIdx + 1}: "${nextQ?.questionText || "done"}"
+
+STRICT RULES -- follow exactly:
+1. Ask EXACTLY ONE question per response. Never list multiple questions.
+2. Maximum 3 sentences per response. Be brief and direct.
+3. If this is the FIRST answer to Q${effectiveQIdx + 1} (round 1): ask ONE targeted follow-up probing deeper.
+4. If this is the SECOND answer to Q${effectiveQIdx + 1} (round 2): acknowledge in ONE sentence, then ask Q${nextQIdx + 1} above.
+5. NEVER ask about a topic already covered -- check the transcript.
+6. NEVER repeat or rephrase a question already asked.
+7. If a student answer is strong, acknowledge briefly and move on immediately.
+8. PASTE-BACK DETECTION: If the student's response is identical or nearly identical to your previous question, do NOT move on. Instead respond: "It looks like you may have accidentally pasted the question instead of your answer. Please provide your actual response." Then wait -- do not ask a new question.
 
 ${conclude ? `
-CRITICAL DIRECTIVE: The instructor has clicked 'Finalize/Conclude Defense'.
-Provide final closing feedback, then append a holistic assessment EXACTLY inside <assessment>...</assessment> tags.
-Customise the categories list to Submission Type "${activityName}":
-- Paper/Article: ["Technical Mastery","Whiteboard Synthesis","Integrity Verification"]
-- Project/Codebase: ["System Architecture","Software Implementation Logic","Integrity Verification"]
-- Presentation Slide Deck: ["Command of Slide Claims","Visual Diagrammatic Verification","Integrity Verification"]
-- Capstone/Thesis: ["Theoretical Foundation","Engineering Trade-offs","Integrity Verification"]
-
-JSON schema inside <assessment>:
+CONCLUDE: 2 sentences of closing feedback, then output EXACTLY:
+<assessment>
 {
-  "overallScore": 82,
+  "overallScore": <0-100>,
   "suspicionLevel": "Low" | "Medium" | "High",
-  "suspicionReasoning": "...",
-  "categories": [{ "name": "...", "score": 8, "feedback": "..." }],
-  "keyFindings": ["..."],
-  "gapsIdentified": ["..."],
-  "recommendedGrade": "A-"
+  "suspicionReasoning": "one sentence",
+  "categories": [
+    {"name": "Technical Mastery", "score": <1-10>, "feedback": "one sentence"},
+    {"name": "Whiteboard Synthesis", "score": <1-10>, "feedback": "one sentence"},
+    {"name": "Integrity Verification", "score": <1-10>, "feedback": "one sentence"}
+  ],
+  "keyFindings": ["finding 1", "finding 2"],
+  "gapsIdentified": ["gap 1", "gap 2"],
+  "recommendedGrade": "A" | "A-" | "B+" | "B" | "B-" | "C+" | "C" | "F"
 }
-` : "Ask the next challenging follow-up question targeting areas of ambiguity."}
-`;
+</assessment>
+` : ""}`;
 
     const base64Images: string[] = [];
     if (snapshots && Array.isArray(snapshots)) {
@@ -680,10 +690,12 @@ JSON schema inside <assessment>:
       });
     }
 
-    const userText = `${systemPrompt}\n\nInterview transcript so far:\n${printedHistory}\n\nEvaluator's active prompt: ${
+    const userText = `${systemPrompt}\n\nTranscript so far:\n${printedHistory}\n\nYour task: ${
       conclude
-        ? "Finalize the defense, summarize, and provide the assessment tags."
-        : "Evaluate the response, check whiteboard snapshots, and ask the next probing question."
+        ? "Finalize and output the assessment block."
+        : roundOnCurrentQ >= 2
+          ? `The student just answered Q${effectiveQIdx + 1} a second time. Acknowledge in one sentence, then ask Q${nextQIdx + 1}: "${nextQ?.questionText || ""}"`
+          : `The student just answered Q${effectiveQIdx + 1} for the first time. Ask one targeted follow-up.`
     }`;
 
     const aiResponseText =
@@ -698,7 +710,7 @@ JSON schema inside <assessment>:
   }
 });
 
-// ─── Vite / static file serving ──────────────────────────────────────────────
+// --- Vite / static file serving ----------------------------------------------
 async function initServer() {
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({

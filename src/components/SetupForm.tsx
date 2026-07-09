@@ -60,7 +60,7 @@ const activityConfigs: {
     titleLabel: "Presentation / Slide Deck Title",
     titlePlaceholder: "e.g. Commercializing Fusion Energy Bounds",
     fileLabel: "Upload .pptx slide deck or paste notes below",
-    fileDesc: "Drag & drop or click browse — .pptx files are automatically parsed",
+    fileDesc: "Drag & drop or click browse -- .pptx files are automatically parsed",
     pastedLabel: "Paste Slide Outlines, Speaker Notes, or Transcripts",
     pastedPlaceholder: "Paste the slide-by-slide titles, key bullet points, and speaker notes representing the slides' claims..."
   },
@@ -76,11 +76,11 @@ const activityConfigs: {
   }
 };
 
-// ─── PPTX text extraction ─────────────────────────────────────────────────────
+// ??? PPTX text extraction ?????????????????????????????????????????????????????
 // Extracts readable text from all slide XML files inside a .pptx zip archive.
-// Does NOT render slides as images — just pulls the text content for AI analysis.
+// Does NOT render slides as images -- just pulls the text content for AI analysis.
 async function extractPptxText(file: File): Promise<string> {
-  // Dynamically import JSZip — it's already in node_modules via the xlsx dependency chain
+  // Dynamically import JSZip -- it's already in node_modules via the xlsx dependency chain
   // If JSZip is not available, fall back to a helpful error message
   let JSZip: any;
   try {
@@ -128,7 +128,7 @@ async function extractPptxText(file: File): Promise<string> {
   return slideTexts.join("\n\n");
 }
 
-// ─── DOCX text extraction ─────────────────────────────────────────────────────
+// ??? DOCX text extraction ?????????????????????????????????????????????????????
 // Uses mammoth.js to convert a .docx file to plain text in the browser.
 async function extractDocxText(file: File): Promise<string> {
   let mammoth: any;
@@ -149,7 +149,7 @@ async function extractDocxText(file: File): Promise<string> {
   return result.value;
 }
 
-// ─── Image compression helper ─────────────────────────────────────────────────
+// ??? Image compression helper ?????????????????????????????????????????????????
 // Resizes and compresses an image to max 1280px wide at 75% JPEG quality.
 // Returns a compressed base64 data URL.
 async function compressImage(dataUrl: string, maxWidth = 1280, quality = 0.75): Promise<string> {
@@ -187,7 +187,7 @@ export default function SetupForm({ onSetupComplete, isLoading, assessmentMode, 
 
   const currentConfig = activityConfigs[activityType] || activityConfigs.paper;
 
-  // ─── File upload handler ──────────────────────────────────────────────────
+  // ??? File upload handler ??????????????????????????????????????????????????
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -233,7 +233,7 @@ export default function SetupForm({ onSetupComplete, isLoading, assessmentMode, 
     setFileLoading(false);
   };
 
-  // ─── Diagram paste handler ────────────────────────────────────────────────
+  // ??? Diagram paste handler ????????????????????????????????????????????????
   const handleDiagramPaste = async (e: React.ClipboardEvent<HTMLDivElement>) => {
     const items = Array.from(e.clipboardData.items);
     const imageItem = items.find((item) => item.type.startsWith("image/"));
@@ -402,14 +402,14 @@ export default function SetupForm({ onSetupComplete, isLoading, assessmentMode, 
 
               {fileName && !fileLoading && (
                 <div className="mt-2 bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-xs px-3 py-1 rounded-full font-mono flex items-center gap-1">
-                  📎 {fileName}
-                  {pastedText && <span className="text-emerald-400 ml-1">✓ extracted</span>}
+                  ? {fileName}
+                  {pastedText && <span className="text-emerald-400 ml-1">v extracted</span>}
                 </div>
               )}
 
               {fileError && (
                 <div className="mt-2 bg-red-500/10 border border-red-500/30 text-red-400 text-xs px-3 py-1.5 rounded-lg font-mono">
-                  ⚠ {fileError}
+                  ? {fileError}
                 </div>
               )}
             </div>
@@ -441,7 +441,7 @@ export default function SetupForm({ onSetupComplete, isLoading, assessmentMode, 
                   <p className="text-[11px] text-white/30 font-mono">
                     Click here, then press <span className="text-white/50">Ctrl+V</span> to paste a diagram
                   </p>
-                  <p className="text-[10px] text-white/20 mt-0.5">or drag and drop an image file — auto-compressed before sending</p>
+                  <p className="text-[10px] text-white/20 mt-0.5">or drag and drop an image file -- auto-compressed before sending</p>
                 </div>
               )}
 
@@ -461,7 +461,7 @@ export default function SetupForm({ onSetupComplete, isLoading, assessmentMode, 
                     <X className="w-3 h-3" />
                   </button>
                   <p className="text-[10px] text-emerald-400 font-mono text-center mt-1.5">
-                    ✓ Diagram attached — will be included in defense analysis
+                    v Diagram attached -- will be included in defense analysis
                   </p>
                 </div>
               )}

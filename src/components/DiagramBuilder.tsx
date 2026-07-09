@@ -29,6 +29,25 @@ interface DiagramEdge {
   dir: "one" | "both";
 }
 
+interface DiagramGroup {
+  id: number;
+  x: number;
+  y: number;
+  rx: number;   // horizontal radius
+  ry: number;   // vertical radius
+  label: string;
+  color: string;
+}
+
+interface DiagramTextLabel {
+  id: number;
+  x: number;
+  y: number;
+  text: string;
+  fontSize: number;
+  color: string;
+}
+
 interface EvalCheck {
   label: string;
   pass: boolean;
@@ -61,20 +80,20 @@ const HANDLE_R = 7;
 const HANDLE_HIT = 14;
 
 const DEFS: Record<string, NodeDef> = {
-  router:   { icon: "?",  label: "Router",      color: "#818CF8", fill: "#1e1b4b", stroke: "#4338ca" },
-  firewall: { icon: "?",  label: "Firewall",    color: "#f87171", fill: "#450a0a", stroke: "#991b1b" },
-  switch:   { icon: "?",  label: "Switch",      color: "#a78bfa", fill: "#2e1065", stroke: "#6d28d9" },
-  vlan:     { icon: "?",  label: "VLAN",        color: "#34d399", fill: "#022c22", stroke: "#065f46" },
-  server:   { icon: "?",  label: "Server",      color: "#9ca3af", fill: "#111827", stroke: "#374151" },
-  cloud:    { icon: "?",  label: "Cloud",       color: "#60a5fa", fill: "#0c1a2e", stroke: "#1e40af" },
-  endpoint: { icon: "?", label: "Endpoint",    color: "#d1d5db", fill: "#1f2937", stroke: "#4b5563" },
-  wifi:     { icon: "?",  label: "Wi-Fi AP",    color: "#c4b5fd", fill: "#1e1b4b", stroke: "#5b21b6" },
-  isp:      { icon: "?",  label: "ISP",         color: "#fbbf24", fill: "#1c0a00", stroke: "#92400e" },
-  noc:      { icon: "?",  label: "NOC",         color: "#6ee7b7", fill: "#022c22", stroke: "#059669" },
-  siem:     { icon: "?", label: "SIEM",        color: "#fca5a5", fill: "#450a0a", stroke: "#b91c1c" },
-  shield:   { icon: "?",  label: "Safeguard",   color: "#fb923c", fill: "#431407", stroke: "#c2410c" },
-  lock:     { icon: "?", label: "Access Ctrl", color: "#a78bfa", fill: "#1e1b4b", stroke: "#7c3aed" },
-  dmz:      { icon: "?",  label: "DMZ",         color: "#f472b6", fill: "#2d0a1f", stroke: "#9d174d" },
+  router:   { icon: "ti-router",           label: "Router",      color: "#818CF8", fill: "#1e1b4b", stroke: "#4338ca" },
+  firewall: { icon: "ti-shield",           label: "Firewall",    color: "#f87171", fill: "#450a0a", stroke: "#991b1b" },
+  switch:   { icon: "ti-switch",           label: "Switch",      color: "#a78bfa", fill: "#2e1065", stroke: "#6d28d9" },
+  vlan:     { icon: "ti-circles-relation", label: "VLAN",        color: "#34d399", fill: "#022c22", stroke: "#065f46" },
+  server:   { icon: "ti-server",           label: "Server",      color: "#9ca3af", fill: "#111827", stroke: "#374151" },
+  cloud:    { icon: "ti-cloud",            label: "Cloud",       color: "#60a5fa", fill: "#0c1a2e", stroke: "#1e40af" },
+  endpoint: { icon: "ti-device-laptop",   label: "Endpoint",    color: "#d1d5db", fill: "#1f2937", stroke: "#4b5563" },
+  wifi:     { icon: "ti-wifi",             label: "Wi-Fi AP",    color: "#c4b5fd", fill: "#1e1b4b", stroke: "#5b21b6" },
+  isp:      { icon: "ti-world",            label: "ISP",         color: "#fbbf24", fill: "#1c0a00", stroke: "#92400e" },
+  noc:      { icon: "ti-eye",              label: "NOC",         color: "#6ee7b7", fill: "#022c22", stroke: "#059669" },
+  siem:     { icon: "ti-activity",         label: "SIEM",        color: "#fca5a5", fill: "#450a0a", stroke: "#b91c1c" },
+  shield:   { icon: "ti-shield-check",     label: "Safeguard",   color: "#fb923c", fill: "#431407", stroke: "#c2410c" },
+  lock:     { icon: "ti-lock",             label: "Access Ctrl", color: "#a78bfa", fill: "#1e1b4b", stroke: "#7c3aed" },
+  dmz:      { icon: "ti-hexagon",          label: "DMZ",         color: "#f472b6", fill: "#2d0a1f", stroke: "#9d174d" },
 };
 
 const ROLE_COLORS: Record<string, string> = {
@@ -179,9 +198,14 @@ export default function DiagramBuilder({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [nodes, setNodes] = useState<DiagramNode[]>([]);
   const [edges, setEdges] = useState<DiagramEdge[]>([]);
+  const [groups, setGroups] = useState<DiagramGroup[]>([]);
+  const [textLabels, setTextLabels] = useState<DiagramTextLabel[]>([]);
   const [nextId, setNextId] = useState(1);
   const [selectedNode, setSelectedNode] = useState<DiagramNode | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<DiagramEdge | null>(null);
+  const [selectedGroup, setSelectedGroup] = useState<DiagramGroup | null>(null);
+  const [selectedLabel, setSelectedLabel] = useState<DiagramTextLabel | null>(null);
+  const [editingLabelId, setEditingLabelId] = useState<number | null>(null);
   const [hoverNodeId, setHoverNodeId] = useState<number | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(true);
   const [evaluating, setEvaluating] = useState(false);
@@ -193,27 +217,35 @@ export default function DiagramBuilder({
   // Mutable refs for canvas interaction (avoids stale closure in event listeners)
   const nodesRef = useRef(nodes);
   const edgesRef = useRef(edges);
+  const groupsRef = useRef(groups);
+  const textLabelsRef = useRef(textLabels);
   const nextIdRef = useRef(nextId);
   const selectedNodeRef = useRef(selectedNode);
   const hoverNodeIdRef = useRef(hoverNodeId);
   const dragNodeRef = useRef<DiagramNode | null>(null);
   const dragOffRef = useRef({ x: 0, y: 0 });
+  const dragGroupRef = useRef<DiagramGroup | null>(null);
+  const dragLabelRef = useRef<DiagramTextLabel | null>(null);
   const connDragRef = useRef<{
     fromId: number; fromX: number; fromY: number;
     curX: number; curY: number; snapTarget: DiagramNode | null;
   } | null>(null);
-  const paletteDragTypeRef = useRef<string | null>(null);
+  const draggingPaletteType = useRef<string | null>(null);
 
   useEffect(() => { nodesRef.current = nodes; }, [nodes]);
   useEffect(() => { edgesRef.current = edges; }, [edges]);
+  useEffect(() => { groupsRef.current = groups; }, [groups]);
+  useEffect(() => { textLabelsRef.current = textLabels; }, [textLabels]);
   useEffect(() => { nextIdRef.current = nextId; }, [nextId]);
   useEffect(() => { selectedNodeRef.current = selectedNode; }, [selectedNode]);
   useEffect(() => { hoverNodeIdRef.current = hoverNodeId; }, [hoverNodeId]);
 
-  // Re-detect scenario when question changes
+  // Re-detect scenario and clear canvas when question changes
   useEffect(() => {
     setScenario(detectScenario(focusConcept));
-    setEvaluation(null);
+    setNodes([]); setEdges([]); setGroups([]); setTextLabels([]);
+    setSelectedNode(null); setSelectedEdge(null); setSelectedGroup(null); setSelectedLabel(null);
+    setEditingLabelId(null); setEvaluation(null);
   }, [questionIndex, focusConcept]);
 
   // ?? Helpers ??????????????????????????????????????????????????????????????????
@@ -262,8 +294,49 @@ export default function DiagramBuilder({
     return null;
   };
 
+  const getGroupAt = (x: number, y: number) => {
+    for (let i = groupsRef.current.length - 1; i >= 0; i--) {
+      const g = groupsRef.current[i];
+      const dx = x - g.x, dy = y - g.y;
+      // Point in ellipse: (dx/rx)^2 + (dy/ry)^2 <= 1
+      // Use ring detection: between 0.8 and 1.0 of ellipse boundary
+      const norm = (dx / g.rx) ** 2 + (dy / g.ry) ** 2;
+      if (norm <= 1.0 && norm >= 0.7) return g;
+    }
+    return null;
+  };
+
+  const getLabelAt = (x: number, y: number) => {
+    for (let i = textLabelsRef.current.length - 1; i >= 0; i--) {
+      const l = textLabelsRef.current[i];
+      const w = l.text.length * l.fontSize * 0.6;
+      const h = l.fontSize + 4;
+      if (x >= l.x - 4 && x <= l.x + w + 4 && y >= l.y - h && y <= l.y + 4) return l;
+    }
+    return null;
+  };
+
   const clampX = (x: number) => Math.max(NODE_W / 2 + 4, Math.min(660 - NODE_W / 2 - 4, x));
   const clampY = (y: number) => Math.max(NODE_H / 2 + 4, Math.min(400 - NODE_H / 2 - 4, y));
+
+  const addGroup = useCallback((x: number, y: number) => {
+    const g: DiagramGroup = {
+      id: nextIdRef.current, x, y, rx: 100, ry: 60,
+      label: "Group", color: "#818CF8",
+    };
+    setNextId(p => p + 1);
+    setGroups(prev => [...prev, g]);
+  }, []);
+
+  const addTextLabel = useCallback((x: number, y: number) => {
+    const l: DiagramTextLabel = {
+      id: nextIdRef.current, x, y,
+      text: "Label", fontSize: 13, color: "#e2e8f0",
+    };
+    setNextId(p => p + 1);
+    setTextLabels(prev => [...prev, l]);
+    setEditingLabelId(l.id);
+  }, []);
 
   const addNode = useCallback((type: string, x: number, y: number) => {
     const def = DEFS[type] || DEFS.server;
@@ -302,6 +375,28 @@ export default function DiagramBuilder({
         ctx.fill();
       }
     }
+
+    // Draw groups (behind everything)
+    groupsRef.current.forEach((g) => {
+      const isSel = selectedGroup?.id === g.id;
+      ctx.save();
+      ctx.beginPath();
+      ctx.ellipse(g.x, g.y, g.rx, g.ry, 0, 0, Math.PI * 2);
+      ctx.fillStyle = g.color + "18";
+      ctx.fill();
+      ctx.strokeStyle = isSel ? "#fff" : g.color;
+      ctx.lineWidth = isSel ? 2 : 1.5;
+      ctx.setLineDash([6, 4]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      if (g.label) {
+        ctx.font = "bold 11px monospace";
+        ctx.fillStyle = g.color;
+        ctx.textAlign = "center";
+        ctx.fillText(g.label, g.x, g.y - g.ry + 14);
+      }
+      ctx.restore();
+    });
 
     // Edges
     curEdges.forEach((e) => {
@@ -438,10 +533,31 @@ export default function DiagramBuilder({
         });
       }
     });
-  }, [selectedEdge]);
+    // Text labels (on top of everything except editing overlay)
+    textLabelsRef.current.forEach((l) => {
+      if (l.id === editingLabelId) return; // skip — rendered as HTML input
+      const isSel = selectedLabel?.id === l.id;
+      ctx.save();
+      ctx.font = `${l.fontSize}px sans-serif`;
+      const tw = ctx.measureText(l.text).width;
+      if (isSel) {
+        ctx.fillStyle = "rgba(129,140,248,0.15)";
+        ctx.fillRect(l.x - 3, l.y - l.fontSize - 1, tw + 6, l.fontSize + 6);
+        ctx.strokeStyle = "#818CF8";
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 2]);
+        ctx.strokeRect(l.x - 3, l.y - l.fontSize - 1, tw + 6, l.fontSize + 6);
+        ctx.setLineDash([]);
+      }
+      ctx.fillStyle = l.color;
+      ctx.textAlign = "left";
+      ctx.fillText(l.text, l.x, l.y);
+      ctx.restore();
+    });
+  }, [selectedEdge, selectedGroup, selectedLabel, editingLabelId]);
 
   // Re-render whenever state changes
-  useEffect(() => { render(); }, [nodes, edges, selectedNode, selectedEdge, hoverNodeId, render]);
+  useEffect(() => { render(); }, [nodes, edges, groups, textLabels, selectedNode, selectedEdge, selectedGroup, selectedLabel, hoverNodeId, editingLabelId, render]);
 
   // Re-render when tab becomes visible -- canvas has 0 dimensions while hidden
   useEffect(() => {
@@ -486,6 +602,20 @@ export default function DiagramBuilder({
         return;
       }
 
+      if (dragGroupRef.current) {
+        dragGroupRef.current.x = x - dragOffRef.current.x;
+        dragGroupRef.current.y = y - dragOffRef.current.y;
+        setGroups([...groupsRef.current]);
+        return;
+      }
+
+      if (dragLabelRef.current) {
+        dragLabelRef.current.x = x - dragOffRef.current.x;
+        dragLabelRef.current.y = y - dragOffRef.current.y;
+        setTextLabels([...textLabelsRef.current]);
+        return;
+      }
+
       const h = getHandleAt(x, y, nodesRef.current);
       if (h) { canvas.style.cursor = "crosshair"; render(); return; }
 
@@ -495,7 +625,7 @@ export default function DiagramBuilder({
       if (newId !== prev) {
         setHoverNodeId(newId);
       }
-      canvas.style.cursor = hit ? "grab" : "default";
+      canvas.style.cursor = hit ? "grab" : getLabelAt(x, y) || getGroupAt(x, y) ? "move" : "default";
     };
 
     const onMouseDown = (e: MouseEvent) => {
@@ -508,8 +638,7 @@ export default function DiagramBuilder({
       }
       const n = getNodeAt(x, y, nodesRef.current);
       if (n) {
-        setSelectedNode(n);
-        setSelectedEdge(null);
+        setSelectedNode(n); setSelectedEdge(null); setSelectedGroup(null); setSelectedLabel(null);
         dragNodeRef.current = n;
         dragOffRef.current = { x: x - n.x, y: y - n.y };
         canvas.style.cursor = "grabbing";
@@ -517,12 +646,29 @@ export default function DiagramBuilder({
       }
       const ed = getEdgeAt(x, y, nodesRef.current, edgesRef.current);
       if (ed) {
-        setSelectedEdge(ed);
-        setSelectedNode(null);
+        setSelectedEdge(ed); setSelectedNode(null); setSelectedGroup(null); setSelectedLabel(null);
         return;
       }
-      setSelectedNode(null);
-      setSelectedEdge(null);
+      const lbl = getLabelAt(x, y);
+      if (lbl) {
+        if (e.detail === 2) {
+          setEditingLabelId(lbl.id);
+        } else {
+          setSelectedLabel(lbl); setSelectedNode(null); setSelectedEdge(null); setSelectedGroup(null);
+          dragLabelRef.current = lbl;
+          dragOffRef.current = { x: x - lbl.x, y: y - lbl.y };
+        }
+        return;
+      }
+      const grp = getGroupAt(x, y);
+      if (grp) {
+        setSelectedGroup(grp); setSelectedNode(null); setSelectedEdge(null); setSelectedLabel(null);
+        dragGroupRef.current = grp;
+        dragOffRef.current = { x: x - grp.x, y: y - grp.y };
+        return;
+      }
+      setSelectedNode(null); setSelectedEdge(null); setSelectedGroup(null); setSelectedLabel(null);
+      setEditingLabelId(null);
     };
 
     const onMouseUp = (e: MouseEvent) => {
@@ -546,12 +692,16 @@ export default function DiagramBuilder({
         return;
       }
       dragNodeRef.current = null;
+      dragGroupRef.current = null;
+      dragLabelRef.current = null;
       canvas.style.cursor = hoverNodeIdRef.current ? "grab" : "default";
     };
 
     const onMouseLeave = () => {
       if (connDragRef.current) { connDragRef.current = null; render(); }
       dragNodeRef.current = null;
+      dragGroupRef.current = null;
+      dragLabelRef.current = null;
       setHoverNodeId(null);
       canvas.style.cursor = "default";
     };
@@ -568,19 +718,57 @@ export default function DiagramBuilder({
     };
   }, [render, addNode]);
 
-  // ?? Drop from palette ????????????????????????????????????????????????????????
+  // ── Palette drag via mousemove (replaces HTML5 drag-drop which fails on canvas) ──
+  const dragGhostRef = useRef<HTMLDivElement | null>(null);
 
-  const onDragOver = (e: React.DragEvent) => e.preventDefault();
-  const onDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    const type = paletteDragTypeRef.current || e.dataTransfer.getData("text/plain");
-    if (!type || !DEFS[type]) return;
-    const canvas = canvasRef.current!;
-    const r = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / r.width;
-    const scaleY = canvas.height / r.height;
-    addNode(type, (e.clientX - r.left) * scaleX, (e.clientY - r.top) * scaleY);
-    paletteDragTypeRef.current = null;
+  const startPaletteDrag = (type: string, e: React.MouseEvent) => {
+    draggingPaletteType.current = type;
+
+    // Create a ghost element that follows the cursor
+    const ghost = document.createElement("div");
+    ghost.style.cssText = `
+      position:fixed; pointer-events:none; z-index:9999;
+      padding:4px 10px; border-radius:8px; font-size:11px; font-family:monospace;
+      background:${DEFS[type]?.fill || "#1e1b4b"}; color:${DEFS[type]?.color || "#fff"};
+      border:1px solid ${DEFS[type]?.stroke || "#818CF8"};
+      left:${e.clientX + 10}px; top:${e.clientY - 16}px;
+    `;
+    ghost.textContent = DEFS[type]?.label || type;
+    document.body.appendChild(ghost);
+    dragGhostRef.current = ghost;
+
+    const onMove = (me: MouseEvent) => {
+      if (ghost) {
+        ghost.style.left = `${me.clientX + 10}px`;
+        ghost.style.top = `${me.clientY - 16}px`;
+      }
+    };
+
+    const onUp = (me: MouseEvent) => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      if (ghost && ghost.parentNode) ghost.parentNode.removeChild(ghost);
+      dragGhostRef.current = null;
+
+      // Check if dropped over the canvas
+      const canvas = canvasRef.current;
+      if (!canvas || !draggingPaletteType.current) return;
+      const r = canvas.getBoundingClientRect();
+      if (
+        me.clientX >= r.left && me.clientX <= r.right &&
+        me.clientY >= r.top && me.clientY <= r.bottom
+      ) {
+        const scaleX = canvas.width / r.width;
+        const scaleY = canvas.height / r.height;
+        const x = (me.clientX - r.left) * scaleX;
+        const y = (me.clientY - r.top) * scaleY;
+        addNode(draggingPaletteType.current, x, y);
+      }
+      draggingPaletteType.current = null;
+    };
+
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
   };
 
   // ?? Actions ??????????????????????????????????????????????????????????????????
@@ -593,6 +781,12 @@ export default function DiagramBuilder({
     } else if (selectedEdge) {
       setEdges((prev) => prev.filter((e) => e.id !== selectedEdge.id));
       setSelectedEdge(null);
+    } else if (selectedGroup) {
+      setGroups((prev) => prev.filter((g) => g.id !== selectedGroup.id));
+      setSelectedGroup(null);
+    } else if (selectedLabel) {
+      setTextLabels((prev) => prev.filter((l) => l.id !== selectedLabel.id));
+      setSelectedLabel(null);
     }
   };
 
@@ -628,7 +822,9 @@ export default function DiagramBuilder({
   };
 
   const clearCanvas = () => {
-    setNodes([]); setEdges([]); setSelectedNode(null); setSelectedEdge(null); setEvaluation(null);
+    setNodes([]); setEdges([]); setGroups([]); setTextLabels([]);
+    setSelectedNode(null); setSelectedEdge(null); setSelectedGroup(null); setSelectedLabel(null);
+    setEditingLabelId(null); setEvaluation(null);
   };
 
   // ?? Evaluate ??????????????????????????????????????????????????????????????????
@@ -687,6 +883,15 @@ Respond ONLY with valid JSON, no markdown fences:
       });
       if (res.ok) {
         const data = await res.json();
+        // Enforce exact score based on check results
+        if (data.checks && Array.isArray(data.checks)) {
+          const passCount = data.checks.filter((c: {pass: boolean}) => c.pass).length;
+          if (passCount === 3) data.overallScore = 10;
+          else if (passCount === 2) data.overallScore = 7;
+          else if (passCount === 1) data.overallScore = 4;
+          else if (nodes.length > 0) data.overallScore = 1; // something placed but all wrong
+          else data.overallScore = 0;
+        }
         setEvaluation(data);
       } else {
         // Fallback local evaluation
@@ -725,7 +930,7 @@ Respond ONLY with valid JSON, no markdown fences:
         <Network className="w-3.5 h-3.5 text-indigo-400 mt-0.5 shrink-0" />
         <p className="text-xs text-indigo-300/80 leading-relaxed">
           <span className="font-bold text-indigo-300">Diagram task: </span>{scenario.hint}
-          <span className="text-indigo-400/60 ml-2">{"· Hover a node → drag a handle to connect · Click a link to edit or delete it"}</span>
+          <span className="text-indigo-400/60 ml-2">{"· Click palette item to place · Drag a node handle to connect · Click a link to edit"}</span>
         </p>
       </div>
 
@@ -746,13 +951,17 @@ Respond ONLY with valid JSON, no markdown fences:
             return (
               <div
                 key={type}
-                draggable
-                onDragStart={() => { paletteDragTypeRef.current = type; }}
+                onMouseDown={(e) => startPaletteDrag(type, e)}
+                onClick={() => {
+                  const x = 200 + Math.random() * 260;
+                  const y = 100 + Math.random() * 200;
+                  addNode(type, x, y);
+                }}
                 style={{ borderColor: d.stroke, backgroundColor: d.fill + "80" }}
                 className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border cursor-grab select-none hover:opacity-90 transition"
-                title={`Drag ${d.label} onto canvas`}
+                title="Click to place, or drag onto canvas"
               >
-                <span className="text-xs" style={{ color: d.color }}>{d.icon}</span>
+                <i className={`ti ${d.icon} text-xs`} style={{ color: d.color }} aria-hidden="true" />
                 <span className="text-[11px] font-mono" style={{ color: d.color }}>{d.label}</span>
               </div>
             );
@@ -761,11 +970,7 @@ Respond ONLY with valid JSON, no markdown fences:
       </div>
 
       {/* Canvas */}
-      <div
-        className="bg-[#080810] border border-white/5 rounded-xl overflow-hidden"
-        onDragOver={onDragOver}
-        onDrop={onDrop}
-      >
+      <div className="bg-[#080810] border border-white/5 rounded-xl overflow-hidden">
         <canvas
           ref={canvasRef}
           width={660}
@@ -774,7 +979,128 @@ Respond ONLY with valid JSON, no markdown fences:
         />
       </div>
 
-      {/* Properties panel */}
+      {/* Group properties */}
+      {selectedGroup && !selectedNode && !selectedEdge && (
+        <div className="bg-[#0d0d11] border border-white/10 rounded-xl p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-white/60 uppercase tracking-widest font-mono">Group properties</span>
+            <button type="button" onClick={deleteSelected} className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-900/60 bg-red-950/30 text-red-400 text-xs font-bold hover:bg-red-950/50 transition">
+              <Trash2 className="w-3 h-3" /> Remove
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[11px] text-white/40 mb-1 font-mono uppercase tracking-wider">Label</label>
+              <input type="text" value={selectedGroup.label}
+                onChange={(e) => {
+                  setGroups(prev => prev.map(g => g.id === selectedGroup.id ? {...g, label: e.target.value} : g));
+                  setSelectedGroup(prev => prev ? {...prev, label: e.target.value} : null);
+                }}
+                className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500/50"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] text-white/40 mb-1 font-mono uppercase tracking-wider">Color</label>
+              <select value={selectedGroup.color}
+                onChange={(e) => {
+                  setGroups(prev => prev.map(g => g.id === selectedGroup.id ? {...g, color: e.target.value} : g));
+                  setSelectedGroup(prev => prev ? {...prev, color: e.target.value} : null);
+                }}
+                className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500/50"
+              >
+                <option value="#818CF8">Indigo</option>
+                <option value="#34d399">Green</option>
+                <option value="#f87171">Red</option>
+                <option value="#fbbf24">Amber</option>
+                <option value="#60a5fa">Blue</option>
+                <option value="#f472b6">Pink</option>
+                <option value="#9ca3af">Gray</option>
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[11px] text-white/40 mb-1 font-mono uppercase tracking-wider">Width (radius)</label>
+              <input type="range" min="50" max="300" value={selectedGroup.rx}
+                onChange={(e) => {
+                  const rx = Number(e.target.value);
+                  const updated = {...selectedGroup, rx};
+                  setGroups(prev => prev.map(g => g.id === selectedGroup.id ? updated : g));
+                  setSelectedGroup(updated);
+                }}
+                className="w-full"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] text-white/40 mb-1 font-mono uppercase tracking-wider">Height (radius)</label>
+              <input type="range" min="30" max="200" value={selectedGroup.ry}
+                onChange={(e) => {
+                  const ry = Number(e.target.value);
+                  const updated = {...selectedGroup, ry};
+                  setGroups(prev => prev.map(g => g.id === selectedGroup.id ? updated : g));
+                  setSelectedGroup(updated);
+                }}
+                className="w-full"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Text label properties / inline editor */}
+      {selectedLabel && !selectedNode && !selectedEdge && !selectedGroup && (
+        <div className="bg-[#0d0d11] border border-white/10 rounded-xl p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-white/60 uppercase tracking-widest font-mono">Label properties</span>
+            <button type="button" onClick={deleteSelected} className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-900/60 bg-red-950/30 text-red-400 text-xs font-bold hover:bg-red-950/50 transition">
+              <Trash2 className="w-3 h-3" /> Remove
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[11px] text-white/40 mb-1 font-mono uppercase tracking-wider">Text</label>
+              <input type="text" value={selectedLabel.text}
+                onChange={(e) => {
+                  setTextLabels(prev => prev.map(l => l.id === selectedLabel.id ? {...l, text: e.target.value} : l));
+                  setSelectedLabel(prev => prev ? {...prev, text: e.target.value} : null);
+                }}
+                className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500/50"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] text-white/40 mb-1 font-mono uppercase tracking-wider">Color</label>
+              <select value={selectedLabel.color}
+                onChange={(e) => {
+                  setTextLabels(prev => prev.map(l => l.id === selectedLabel.id ? {...l, color: e.target.value} : l));
+                  setSelectedLabel(prev => prev ? {...prev, color: e.target.value} : null);
+                }}
+                className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500/50"
+              >
+                <option value="#e2e8f0">White</option>
+                <option value="#818CF8">Indigo</option>
+                <option value="#34d399">Green</option>
+                <option value="#f87171">Red</option>
+                <option value="#fbbf24">Amber</option>
+                <option value="#60a5fa">Blue</option>
+                <option value="#f472b6">Pink</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="block text-[11px] text-white/40 mb-1 font-mono uppercase tracking-wider">Font size</label>
+            <input type="range" min="10" max="24" value={selectedLabel.fontSize}
+              onChange={(e) => {
+                const fontSize = Number(e.target.value);
+                setTextLabels(prev => prev.map(l => l.id === selectedLabel.id ? {...l, fontSize} : l));
+                setSelectedLabel(prev => prev ? {...prev, fontSize} : null);
+              }}
+              className="w-full"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Node / edge properties */}
       {(selectedNode || selectedEdge) && (
         <div className="bg-[#0d0d11] border border-white/10 rounded-xl p-4 space-y-3">
           <div className="flex items-center gap-2">
@@ -858,7 +1184,25 @@ Respond ONLY with valid JSON, no markdown fences:
       )}
 
       {/* Actions */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
+        <button
+          type="button"
+          onClick={() => addGroup(330, 200)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-indigo-500/30 text-indigo-400 text-xs font-bold hover:bg-indigo-950/40 transition"
+          title="Add a dashed ellipse to group/enclose components"
+        >
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 2"><ellipse cx="6.5" cy="6.5" rx="6" ry="4"/></svg>
+          Add Group
+        </button>
+        <button
+          type="button"
+          onClick={() => addTextLabel(100, 100)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-500/30 text-emerald-400 text-xs font-bold hover:bg-emerald-950/40 transition"
+          title="Add a free text label anywhere on the canvas"
+        >
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="currentColor"><text x="1" y="11" fontSize="11" fontFamily="monospace">T</text></svg>
+          Add Label
+        </button>
         <button
           type="button"
           onClick={clearCanvas}

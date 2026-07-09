@@ -17,6 +17,7 @@ interface FollowUpChatProps {
   activityType?: string;
   assessmentMode?: "ai" | "instructor";
   questions?: DefenseQuestion[];
+  currentQuestionIndex?: number;
 }
 
 export default function FollowUpChat({
@@ -34,13 +35,14 @@ export default function FollowUpChat({
   activityType,
   assessmentMode = "ai",
   questions = [],
+  currentQuestionIndex = 0,
 }: FollowUpChatProps) {
   const [inputText, setInputText] = useState("");
   const [isAiResponding, setIsAiResponding] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [sendAs, setSendAs] = useState<'student' | 'instructor'>(role === "instructor" ? "instructor" : "student");
   const [studentTurnCount, setStudentTurnCount] = useState(0);
-  const MAX_TURNS = 6; // max follow-up exchanges in oral defense phase
+  const MAX_TURNS = 10; // 5 questions x 2 turns each (initial + follow-up)
   
   // Grading scorecard states for Instructor
   const [showGradingPanel, setShowGradingPanel] = useState(false);
@@ -188,6 +190,17 @@ export default function FollowUpChat({
       return;
     }
 
+    // Paste-back detection: check if student submitted the AI's last question verbatim
+    const lastAiMsg = chatHistory.filter(m => m.sender === "ai").slice(-1)[0];
+    if (lastAiMsg && inputText.trim().length > 20) {
+      const similarity = inputText.trim().toLowerCase().slice(0, 80);
+      const aiText = lastAiMsg.text.toLowerCase().slice(0, 80);
+      if (similarity === aiText) {
+        alert("It looks like you pasted the question instead of your answer. Please type your response.");
+        return;
+      }
+    }
+
     // Create message chunk
     const newMsg: ChatMessage = {
       id: `${msgSender}_msg_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
@@ -244,6 +257,7 @@ export default function FollowUpChat({
       turnCount: currentTurn,
       maxTurns: MAX_TURNS,
       isNearEnd,
+      currentQuestionIndex,
     };
 
     try {
@@ -479,7 +493,7 @@ export default function FollowUpChat({
               return (
                 <div key={msg.id} className="text-center">
                   <span className="inline-block text-[10px] font-mono text-[#E0E0E0]/60 bg-white/5 p-1 px-3 rounded border border-white/10">
-                    ℹ️ {msg.text}
+                    ?? {msg.text}
                   </span>
                 </div>
               );
@@ -551,7 +565,7 @@ export default function FollowUpChat({
                       : "bg-[#1d1d1d] border border-white/5 text-[#A0A0A0] hover:bg-[#2a2a2a] hover:text-white"
                   }`}
                 >
-                  👤 Student Candidate
+                  ? Student Candidate
                 </button>
                 <button
                   type="button"
@@ -562,7 +576,7 @@ export default function FollowUpChat({
                       : "bg-[#1d1d1d] border border-white/5 text-[#A0A0A0] hover:bg-[#2a2a2a] hover:text-white"
                   }`}
                 >
-                  🎓 Panel Chair (Instructor)
+                  ? Panel Chair (Instructor)
                 </button>
               </div>
             )}
@@ -619,7 +633,7 @@ export default function FollowUpChat({
           </form>
         ) : (
           <div className="bg-[#141414] border-t border-white/10 p-4 text-center text-xs font-mono text-white/40">
-            👁️ You are observing in spectator Mode. Student drawings and comments synced instantaneously.
+            ?? You are observing in spectator Mode. Student drawings and comments synced instantaneously.
           </div>
         )}
       </div>
@@ -835,7 +849,8 @@ export default function FollowUpChat({
                         questions,
                         pastedText,
                         conclude: true,
-                        activityType
+                        activityType,
+                        currentQuestionIndex,
                       })
                     });
                     const result = await response.json();
@@ -885,7 +900,7 @@ export default function FollowUpChat({
                 className="flex items-center gap-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 font-mono text-xs px-4 py-2.5 rounded-xl border border-indigo-500/20 active:scale-95 transition cursor-pointer disabled:opacity-50"
               >
                 <Sparkles className="w-3.5 h-3.5" /> 
-                {isAiResponding ? "Connecting with Gemini..." : "⚡ Draft automatically with Gemini Analysis"}
+                {isAiResponding ? "Connecting with AI..." : "Draft automatically with AI Analysis"}
               </button>
 
               <button

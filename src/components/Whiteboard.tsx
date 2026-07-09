@@ -1034,7 +1034,7 @@ export default function Whiteboard({
           ) : (
             <div className="text-xs font-mono text-white/40 bg-white/5 py-1 px-3 rounded-full flex items-center gap-1.5 border border-white/5">
               <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse mr-0.5"></span>
-              Instructor Mirroring View — Read-only Reviewing
+              Instructor Mirroring View -- Read-only Reviewing
             </div>
           )}
 

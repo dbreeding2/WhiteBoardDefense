@@ -124,7 +124,7 @@ export default function ReportViewer({
     doc.setFontSize(9);
     assessment.categories.forEach((cat) => {
       doc.setFont("Helvetica", "bold");
-      doc.text(`• ${cat.name} (${cat.score}/10)`, 15, currentY);
+      doc.text(`* ${cat.name} (${cat.score}/10)`, 15, currentY);
       currentY += 4;
       doc.setFont("Helvetica", "normal");
       const wrappedFeedback = doc.splitTextToSize(cat.feedback, 170);
@@ -152,12 +152,12 @@ export default function ReportViewer({
     
     if (assessment.keyFindings && assessment.keyFindings.length > 0) {
       assessment.keyFindings.forEach((f) => {
-        const wrappedf = doc.splitTextToSize(`✔ ${f}`, 175);
+        const wrappedf = doc.splitTextToSize(`v ${f}`, 175);
         doc.text(wrappedf, 15, currentY);
         currentY += (wrappedf.length * 4) + 2;
       });
     } else {
-      doc.text("✔ No major strengths identified during follow-up questioning.", 15, currentY);
+      doc.text("v No major strengths identified during follow-up questioning.", 15, currentY);
       currentY += 6;
     }
 
@@ -174,12 +174,12 @@ export default function ReportViewer({
 
     if (assessment.gapsIdentified && assessment.gapsIdentified.length > 0) {
       assessment.gapsIdentified.forEach((g) => {
-        const wrappedg = doc.splitTextToSize(`✖ ${g}`, 175);
+        const wrappedg = doc.splitTextToSize(`? ${g}`, 175);
         doc.text(wrappedg, 15, currentY);
         currentY += (wrappedg.length * 4) + 2;
       });
     } else {
-      doc.text("✖ No core competence discrepancies detected.", 15, currentY);
+      doc.text("? No core competence discrepancies detected.", 15, currentY);
       currentY += 6;
     }
 
@@ -314,7 +314,7 @@ export default function ReportViewer({
             <ul className="space-y-3 leading-relaxed text-xs">
               {assessment.keyFindings && assessment.keyFindings.map((inf, idx) => (
                 <li key={idx} className="flex gap-2.5 items-start text-white/80">
-                  <span className="text-emerald-500 font-bold shrink-0">✔</span>
+                  <span className="text-emerald-500 font-bold shrink-0">v</span>
                   <span>{inf}</span>
                 </li>
               ))}
@@ -331,7 +331,7 @@ export default function ReportViewer({
             <ul className="space-y-3 leading-relaxed text-xs">
               {assessment.gapsIdentified && assessment.gapsIdentified.map((gap, idx) => (
                 <li key={idx} className="flex gap-2.5 items-start text-white/80">
-                  <span className="text-red-500 font-bold shrink-0">✖</span>
+                  <span className="text-red-500 font-bold shrink-0">?</span>
                   <span>{gap}</span>
                 </li>
               ))}

@@ -68,7 +68,7 @@ export default function WordProcessor({
         headers: ["Variable / Parameter", "Theoretical Value", "Logical Justification"],
         rows: [
           ["e.g. Convergence Rate", "O(1/k) animate", "Direct first-order subgradient bounds"],
-          ["e.g. Beta Boundary", "± 1.96 σ", "Normal distribution bounds wrapper for error rates"]
+          ["e.g. Beta Boundary", "? 1.96 ?", "Normal distribution bounds wrapper for error rates"]
         ]
       }
     };
@@ -105,7 +105,7 @@ export default function WordProcessor({
         // fall through to default
       }
     }
-    // No saved state — reset to blank default
+    // No saved state -- reset to blank default
     setDocState({
       text: "",
       hasTable: false,
@@ -194,7 +194,7 @@ export default function WordProcessor({
 
     ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
     ctx.font = "11px monospace";
-    ctx.fillText(`SESSION ID: ${sessionId} • QUESTION #${questionIndex + 1}`, canvas.width - 240, 36);
+    ctx.fillText(`SESSION ID: ${sessionId} * QUESTION #${questionIndex + 1}`, canvas.width - 240, 36);
 
     // Content Margins
     const startX = 40;
@@ -537,21 +537,21 @@ export default function WordProcessor({
               onClick={() => insertTemplate("tradeoff")}
               className="px-2 py-1 text-[10.5px] font-semibold bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 rounded border border-indigo-500/10 transition cursor-pointer"
             >
-              📊 Trade-offs
+              ? Trade-offs
             </button>
             <button
               type="button"
               onClick={() => insertTemplate("arguments")}
               className="px-2 py-1 text-[10.5px] font-semibold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 rounded border border-emerald-500/10 transition cursor-pointer"
             >
-              📝 Claim Debunks
+              ? Claim Debunks
             </button>
             <button
               type="button"
               onClick={() => insertTemplate("outline")}
               className="px-2 py-1 text-[10.5px] font-semibold bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 rounded border border-amber-500/10 transition cursor-pointer"
             >
-              📐 System Architecture
+              ? System Architecture
             </button>
           </div>
         )}
@@ -561,7 +561,7 @@ export default function WordProcessor({
       <div className="p-5 flex flex-col gap-6 text-left flex-1 min-h-[420px] overflow-y-auto">
         <div className="space-y-2">
           <label className="text-[10px] uppercase font-bold tracking-widest text-[#94A3B8] font-mono block">
-            ✍️ Part 1: Explanatory Proof & Analytical Paragraphs
+            ?? Part 1: Explanatory Proof & Analytical Paragraphs
           </label>
           <p className="text-[11px] text-white/40">
             Articulate key mathematical steps, hypotheses responses, or definitions. Changes update and sync with the examiner immediately.

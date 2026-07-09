@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { Network, Trash2, RefreshCw, CheckCircle, AlertTriangle, ChevronDown } from "lucide-react";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ??? Types ????????????????????????????????????????????????????????????????????
 
 interface NodeDef {
   icon: string;       // emoji fallback label
@@ -51,7 +51,7 @@ interface DiagramBuilderProps {
   role: "student" | "instructor" | "both";
 }
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+// ??? Constants ????????????????????????????????????????????????????????????????
 
 const NODE_W = 80;
 const NODE_H = 48;
@@ -60,20 +60,20 @@ const HANDLE_R = 7;
 const HANDLE_HIT = 14;
 
 const DEFS: Record<string, NodeDef> = {
-  router:   { icon: "⇄",  label: "Router",      color: "#818CF8", fill: "#1e1b4b", stroke: "#4338ca" },
-  firewall: { icon: "🛡",  label: "Firewall",    color: "#f87171", fill: "#450a0a", stroke: "#991b1b" },
-  switch:   { icon: "⊕",  label: "Switch",      color: "#a78bfa", fill: "#2e1065", stroke: "#6d28d9" },
-  vlan:     { icon: "⬡",  label: "VLAN",        color: "#34d399", fill: "#022c22", stroke: "#065f46" },
-  server:   { icon: "▣",  label: "Server",      color: "#9ca3af", fill: "#111827", stroke: "#374151" },
-  cloud:    { icon: "☁",  label: "Cloud",       color: "#60a5fa", fill: "#0c1a2e", stroke: "#1e40af" },
-  endpoint: { icon: "⬛", label: "Endpoint",    color: "#d1d5db", fill: "#1f2937", stroke: "#4b5563" },
-  wifi:     { icon: "≈",  label: "Wi-Fi AP",    color: "#c4b5fd", fill: "#1e1b4b", stroke: "#5b21b6" },
-  isp:      { icon: "◎",  label: "ISP",         color: "#fbbf24", fill: "#1c0a00", stroke: "#92400e" },
-  noc:      { icon: "👁",  label: "NOC",         color: "#6ee7b7", fill: "#022c22", stroke: "#059669" },
-  siem:     { icon: "📊", label: "SIEM",        color: "#fca5a5", fill: "#450a0a", stroke: "#b91c1c" },
-  shield:   { icon: "⛨",  label: "Safeguard",   color: "#fb923c", fill: "#431407", stroke: "#c2410c" },
-  lock:     { icon: "🔒", label: "Access Ctrl", color: "#a78bfa", fill: "#1e1b4b", stroke: "#7c3aed" },
-  dmz:      { icon: "⬠",  label: "DMZ",         color: "#f472b6", fill: "#2d0a1f", stroke: "#9d174d" },
+  router:   { icon: "?",  label: "Router",      color: "#818CF8", fill: "#1e1b4b", stroke: "#4338ca" },
+  firewall: { icon: "?",  label: "Firewall",    color: "#f87171", fill: "#450a0a", stroke: "#991b1b" },
+  switch:   { icon: "?",  label: "Switch",      color: "#a78bfa", fill: "#2e1065", stroke: "#6d28d9" },
+  vlan:     { icon: "?",  label: "VLAN",        color: "#34d399", fill: "#022c22", stroke: "#065f46" },
+  server:   { icon: "?",  label: "Server",      color: "#9ca3af", fill: "#111827", stroke: "#374151" },
+  cloud:    { icon: "?",  label: "Cloud",       color: "#60a5fa", fill: "#0c1a2e", stroke: "#1e40af" },
+  endpoint: { icon: "?", label: "Endpoint",    color: "#d1d5db", fill: "#1f2937", stroke: "#4b5563" },
+  wifi:     { icon: "?",  label: "Wi-Fi AP",    color: "#c4b5fd", fill: "#1e1b4b", stroke: "#5b21b6" },
+  isp:      { icon: "?",  label: "ISP",         color: "#fbbf24", fill: "#1c0a00", stroke: "#92400e" },
+  noc:      { icon: "?",  label: "NOC",         color: "#6ee7b7", fill: "#022c22", stroke: "#059669" },
+  siem:     { icon: "?", label: "SIEM",        color: "#fca5a5", fill: "#450a0a", stroke: "#b91c1c" },
+  shield:   { icon: "?",  label: "Safeguard",   color: "#fb923c", fill: "#431407", stroke: "#c2410c" },
+  lock:     { icon: "?", label: "Access Ctrl", color: "#a78bfa", fill: "#1e1b4b", stroke: "#7c3aed" },
+  dmz:      { icon: "?",  label: "DMZ",         color: "#f472b6", fill: "#2d0a1f", stroke: "#9d174d" },
 };
 
 const ROLE_COLORS: Record<string, string> = {
@@ -85,7 +85,7 @@ const ROLE_COLORS: Record<string, string> = {
   encrypted:   "#06b6d4",
 };
 
-// Map focusConcept keywords → component palette presets
+// Map focusConcept keywords -> component palette presets
 const SCENARIO_PALETTES: Array<{
   keywords: string[];
   components: string[];
@@ -128,7 +128,7 @@ function detectScenario(concept: string): { components: string[]; hint: string }
   };
 }
 
-// ─── Canvas drawing helpers ───────────────────────────────────────────────────
+// ??? Canvas drawing helpers ???????????????????????????????????????????????????
 
 function roundRect(
   ctx: CanvasRenderingContext2D,
@@ -165,7 +165,7 @@ function drawArrowHead(
   ctx.fill();
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
+// ??? Component ????????????????????????????????????????????????????????????????
 
 export default function DiagramBuilder({
   questionIndex,
@@ -214,7 +214,7 @@ export default function DiagramBuilder({
     setEvaluation(null);
   }, [questionIndex, focusConcept]);
 
-  // ── Helpers ──────────────────────────────────────────────────────────────────
+  // ?? Helpers ??????????????????????????????????????????????????????????????????
 
   const getHandles = (n: DiagramNode) => [
     { side: "right",  x: n.x + NODE_W / 2, y: n.y },
@@ -275,7 +275,7 @@ export default function DiagramBuilder({
     return newNode;
   }, []);
 
-  // ── Render ────────────────────────────────────────────────────────────────────
+  // ?? Render ????????????????????????????????????????????????????????????????????
 
   const render = useCallback(() => {
     const canvas = canvasRef.current;
@@ -418,7 +418,7 @@ export default function DiagramBuilder({
       ctx.fillStyle = n.def.color;
       ctx.font = "500 11px sans-serif";
       ctx.textAlign = "center";
-      const lbl = n.label.length > 13 ? n.label.slice(0, 12) + "…" : n.label;
+      const lbl = n.label.length > 13 ? n.label.slice(0, 12) + "..." : n.label;
       ctx.fillText(lbl, n.x, n.y + 4);
       ctx.font = "10px monospace";
       ctx.fillStyle = "#6b7280";
@@ -441,7 +441,7 @@ export default function DiagramBuilder({
   // Re-render whenever state changes
   useEffect(() => { render(); }, [nodes, edges, selectedNode, selectedEdge, hoverNodeId, render]);
 
-  // ── Canvas events ─────────────────────────────────────────────────────────────
+  // ?? Canvas events ?????????????????????????????????????????????????????????????
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -553,7 +553,7 @@ export default function DiagramBuilder({
     };
   }, [render, addNode]);
 
-  // ── Drop from palette ────────────────────────────────────────────────────────
+  // ?? Drop from palette ????????????????????????????????????????????????????????
 
   const onDragOver = (e: React.DragEvent) => e.preventDefault();
   const onDrop = (e: React.DragEvent) => {
@@ -565,7 +565,7 @@ export default function DiagramBuilder({
     paletteDragTypeRef.current = null;
   };
 
-  // ── Actions ──────────────────────────────────────────────────────────────────
+  // ?? Actions ??????????????????????????????????????????????????????????????????
 
   const deleteSelected = () => {
     if (selectedNode) {
@@ -613,7 +613,7 @@ export default function DiagramBuilder({
     setNodes([]); setEdges([]); setSelectedNode(null); setSelectedEdge(null); setEvaluation(null);
   };
 
-  // ── Evaluate ──────────────────────────────────────────────────────────────────
+  // ?? Evaluate ??????????????????????????????????????????????????????????????????
 
   const evaluate = async () => {
     setEvaluating(true);
@@ -627,7 +627,7 @@ export default function DiagramBuilder({
       const a = nodes.find((n) => n.id === e.a);
       const b = nodes.find((n) => n.id === e.b);
       return a && b
-        ? `${a.type}${e.dir === "both" ? "↔" : "→"}${b.type}${e.label ? " [" + e.label + "]" : ""}`
+        ? `${a.type}${e.dir === "both" ? "<->" : "->"}${b.type}${e.label ? " [" + e.label + "]" : ""}`
         : "";
     }).filter(Boolean).join(", ");
 
@@ -674,7 +674,7 @@ Evaluate on exactly three criteria specific to this question, and respond ONLY w
           ],
           missingConcepts: [],
           integritySignal: "low",
-          integrityNote: "Manual evaluation required — AI evaluation unavailable.",
+          integrityNote: "Manual evaluation required -- AI evaluation unavailable.",
         });
       }
     } catch {
@@ -689,7 +689,7 @@ Evaluate on exactly three criteria specific to this question, and respond ONLY w
     setEvaluating(false);
   };
 
-  // ── Render UI ─────────────────────────────────────────────────────────────────
+  // ?? Render UI ?????????????????????????????????????????????????????????????????
 
   const paletteTypes = [...new Set([...scenario.components, ...ALL_COMPONENTS])];
 
@@ -700,7 +700,7 @@ Evaluate on exactly three criteria specific to this question, and respond ONLY w
         <Network className="w-3.5 h-3.5 text-indigo-400 mt-0.5 shrink-0" />
         <p className="text-xs text-indigo-300/80 leading-relaxed">
           <span className="font-bold text-indigo-300">Diagram task: </span>{scenario.hint}
-          <span className="text-indigo-400/60 ml-2">· Hover a node → drag a handle to connect · Click a link to edit or delete it</span>
+          <span className="text-indigo-400/60 ml-2">. Hover a node -> drag a handle to connect . Click a link to edit or delete it</span>
         </p>
       </div>
 
@@ -711,7 +711,7 @@ Evaluate on exactly three criteria specific to this question, and respond ONLY w
           onClick={() => setPaletteOpen(!paletteOpen)}
           className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-white/40 hover:text-white/60 transition w-full"
         >
-          Component palette — drag onto canvas
+          Component palette -- drag onto canvas
           <ChevronDown className={`w-3 h-3 ml-auto transition-transform ${paletteOpen ? "rotate-180" : ""}`} />
         </button>
         <div className={`flex flex-wrap gap-1.5 transition-all overflow-hidden ${paletteOpen ? "mt-3 max-h-96" : "mt-2 max-h-12"}`}>
@@ -773,7 +773,7 @@ Evaluate on exactly three criteria specific to this question, and respond ONLY w
                   type="text"
                   value={selectedNode.label}
                   onChange={(e) => updateSelectedLabel(e.target.value)}
-                  placeholder="e.g. VLAN 10 — Clinical"
+                  placeholder="e.g. VLAN 10 -- Clinical"
                   className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder-white/20 focus:outline-none focus:border-indigo-500/50"
                 />
               </div>
@@ -784,7 +784,7 @@ Evaluate on exactly three criteria specific to this question, and respond ONLY w
                   onChange={(e) => updateSelectedRole(e.target.value)}
                   className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500/50"
                 >
-                  <option value="">— none —</option>
+                  <option value="">-- none --</option>
                   <option value="enforcement">Enforcement boundary</option>
                   <option value="trusted">Trusted zone</option>
                   <option value="untrusted">Untrusted zone</option>
@@ -822,7 +822,7 @@ Evaluate on exactly three criteria specific to this question, and respond ONLY w
                           : "bg-black/30 border-white/10 text-white/40 hover:text-white/60"
                       }`}
                     >
-                      {d === "one" ? "→ One-way" : "↔ Both ways"}
+                      {d === "one" ? "-> One-way" : "<-> Both ways"}
                     </button>
                   ))}
                 </div>
@@ -862,7 +862,7 @@ Evaluate on exactly three criteria specific to this question, and respond ONLY w
           className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white text-xs font-bold transition"
         >
           {evaluating ? (
-            <><RefreshCw className="w-3 h-3 animate-spin" /> Evaluating…</>
+            <><RefreshCw className="w-3 h-3 animate-spin" /> Evaluating...</>
           ) : (
             <><CheckCircle className="w-3 h-3" /> Evaluate diagram</>
           )}
@@ -886,9 +886,9 @@ Evaluate on exactly three criteria specific to this question, and respond ONLY w
               : evaluation.integritySignal === "medium" ? "bg-amber-950/40 text-amber-400 border border-amber-900/50"
               : "bg-red-950/40 text-red-400 border border-red-900/50"
             }`}>
-              {evaluation.integritySignal === "low" ? "✓ Low concern"
-               : evaluation.integritySignal === "medium" ? "⚠ Review needed"
-               : "⛐ Flagged"}
+              {evaluation.integritySignal === "low" ? "v Low concern"
+               : evaluation.integritySignal === "medium" ? "? Review needed"
+               : "? Flagged"}
             </span>
           </div>
 
@@ -896,7 +896,7 @@ Evaluate on exactly three criteria specific to this question, and respond ONLY w
             {evaluation.checks.map((c, i) => (
               <div key={i} className="flex items-start gap-2.5 text-xs">
                 <span className={`mt-0.5 shrink-0 ${c.pass ? "text-emerald-400" : "text-red-400"}`}>
-                  {c.pass ? "✓" : "✗"}
+                  {c.pass ? "v" : "?"}
                 </span>
                 <div>
                   <span className="font-bold text-white/70">{c.label}</span>
@@ -914,7 +914,7 @@ Evaluate on exactly three criteria specific to this question, and respond ONLY w
               </div>
             )}
             <div className="flex items-start gap-2.5 text-xs pt-1 border-t border-white/5">
-              <span className="text-white/20 shrink-0">↳</span>
+              <span className="text-white/20 shrink-0">?</span>
               <span className="text-white/40 italic">{evaluation.integrityNote}</span>
             </div>
           </div>

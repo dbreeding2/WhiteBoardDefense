@@ -9,6 +9,31 @@ import InstructorDashboard from "./components/InstructorDashboard";
 import { FileEdit, Sparkles, Monitor, AppWindow, UserCheck, ShieldAlert } from "lucide-react";
 
 export default function App() {
+  // Inject global accessibility CSS
+  React.useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      /* WCAG 2.4.11 -- visible focus indicators on all interactive elements */
+      *:focus-visible {
+        outline: 2px solid #818CF8 !important;
+        outline-offset: 2px !important;
+      }
+      /* WCAG 1.4.10 -- prefers-reduced-motion */
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+      /* Minimum font size floor */
+      button, input, select, textarea, label {
+        font-size: max(14px, 1em);
+      }
+    `;
+    document.head.appendChild(style);
+    return () => { document.head.removeChild(style); };
+  }, []);
   const [currentStage, setCurrentStage] = useState<'dashboard' | 'setup' | 'review' | 'session' | 'followup' | 'report'>('setup');
   
   // Student Metadata
@@ -61,9 +86,12 @@ export default function App() {
     return Math.random().toString(36).substring(2, 8).toUpperCase();
   };
 
-  // If student, poll REST endpoint for questions until real ones arrive
+  // Poll REST endpoint for questions when joining via URL (student or instructor via "View Session")
   useEffect(() => {
-    if (role !== 'student' || !sessionId) return;
+    // Only poll if we joined via URL params (have a sessionId but started in 'session' stage directly)
+    const urlParams = new URLSearchParams(window.location.search);
+    const joinedViaUrl = !!urlParams.get("sessionId");
+    if (!joinedViaUrl || !sessionId) return;
 
     let attempts = 0;
     const maxAttempts = 10;
@@ -492,26 +520,38 @@ export default function App() {
       setAssessment(null);
       setSessionId(generateSessionId());
       setCurrentQuestionIndex(0);
+      setRole('both');
       setCurrentStage('setup');
     }
   };
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] flex flex-col font-sans antialiased text-[#E0E0E0]">
-      
+
+      {/* Skip to main content -- required WCAG 2.4.1 */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-indigo-600 focus:text-white focus:rounded-lg focus:text-sm focus:font-bold"
+      >
+        Skip to main content
+      </a>
+
+      {/* ARIA live region for status announcements */}
+      <div aria-live="polite" aria-atomic="true" className="sr-only" id="status-announcer" />
+
       {/* Platform Navigation bar Header */}
-      <header className="border-b border-white/10 pb-6 pt-6">
+      <header className="border-b border-white/10 pb-6 pt-6" role="banner">
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex flex-col">
-            <span className="text-[10px] uppercase tracking-[0.3em] text-white/40 font-semibold mb-1">
+            <span className="text-xs uppercase tracking-[0.3em] text-white/40 font-semibold mb-1">
               Whiteboard Defense Assistant
             </span>
             <div className="flex items-baseline gap-3">
-              <h2 className="text-2xl font-serif italic text-white/90">
+              <h1 className="text-2xl font-serif italic text-white/90">
                 {studentName ? `Defense Session: ${studentName}` : "New Defense Session"}
-              </h2>
-              <span className="px-2.5 py-0.5 bg-emerald-950/40 text-emerald-400 border border-emerald-900/50 rounded-full text-[10px] tracking-wider uppercase font-bold">
-                Live Session
+              </h1>
+              <span className="px-2.5 py-0.5 bg-emerald-950/40 text-emerald-400 border border-emerald-900/50 rounded-full text-xs tracking-wider uppercase font-bold">
+                <span aria-hidden="true">&#11044;</span> Live Session
               </span>
             </div>
           </div>
@@ -536,66 +576,73 @@ export default function App() {
             )}
             <div className="h-10 w-[1px] bg-white/10"></div>
             
-            {/* Context Workspace Role Selector -- hidden for students who joined via link */}
-            {role !== 'student' ? (
-              <div className="flex items-center bg-white/5 p-1 border border-white/10 rounded-lg text-xs">
-                <span className="text-[10px] uppercase text-white/40 tracking-widest font-medium hidden sm:inline mr-2 ml-1">Sim:</span>
+            {/* Context Workspace Role Selector -- only shown during setup/review, hidden during live session */}
+            {role !== 'student' && ['setup', 'review', 'dashboard'].includes(currentStage) ? (
+              <div className="flex items-center bg-white/5 p-1 border border-white/10 rounded-lg">
+                <label htmlFor="role-switch-selector" className="sr-only">View mode</label>
                 <select
                   id="role-switch-selector"
                   value={role}
                   onChange={(e) => {
                     setRole(e.target.value as 'both' | 'student' | 'instructor');
                   }}
-                  className="bg-transparent border-none rounded text-[11px] text-[#E0E0E0] outline-none p-1 font-mono uppercase focus:ring-0 cursor-pointer"
+                  className="bg-transparent border-none rounded text-sm text-[#E0E0E0] outline-none p-1 font-mono uppercase focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                 >
                   <option value="both" className="bg-[#111] text-[#E0E0E0]">Combined View</option>
                   <option value="student" className="bg-[#111] text-[#E0E0E0]">Student View</option>
                   <option value="instructor" className="bg-[#111] text-[#E0E0E0]">Instructor View</option>
                 </select>
               </div>
-            ) : (
-              <div className="flex items-center bg-white/5 px-3 py-1.5 border border-white/10 rounded-lg">
-                <span className="text-[10px] uppercase text-white/40 tracking-widest font-mono">Student View</span>
+            ) : role === 'student' ? (
+              <div className="flex items-center bg-white/5 px-3 py-2 border border-white/10 rounded-lg" role="status">
+                <span className="text-sm uppercase text-white/40 tracking-widest font-mono">Student View</span>
               </div>
-            )}
-            {role === 'instructor' && (
+            ) : null}
+            {/* Dashboard button -- only in instructor view, not during live session */}
+            {role === 'instructor' && ['setup', 'review', 'dashboard'].includes(currentStage) && (
               <button
+                type="button"
                 onClick={() => setCurrentStage('dashboard')}
-                className="flex items-center gap-1.5 bg-white/5 border border-white/10 hover:bg-white/10 text-white/60 hover:text-white px-3 py-1.5 rounded-lg text-[11px] font-mono uppercase tracking-wider transition"
+                aria-label="Go to instructor dashboard"
+                className="flex items-center gap-1.5 bg-white/5 border border-white/10 hover:bg-white/10 text-white/60 hover:text-white px-4 py-2 rounded-lg text-sm font-mono uppercase tracking-wider transition focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
-                <Monitor className="w-3 h-3" /> Dashboard
+                <Monitor className="w-4 h-4" aria-hidden="true" /> Dashboard
               </button>
             )}
           </div>
         </div>
 
         {/* Stepper tracker sub-rail */}
-        <div className="max-w-7xl mx-auto px-6 mt-4 flex items-center gap-2 overflow-x-auto py-1 custom-scrollbar">
-          <span className="text-[10px] uppercase tracking-widest text-[#E0E0E0]/30 mr-2">Phase:</span>
-          <span className={`p-1 px-3 rounded-md text-[10px] uppercase tracking-wider border font-mono transition duration-200 ${currentStage === 'setup' ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400 ring-1 ring-indigo-500/20' : 'border-white/5 bg-transparent text-[#E0E0E0]/40'}`}>
-            1. Ingest
-          </span>
-          <span className="text-white/20 text-xs font-mono">/</span>
-          <span className={`p-1 px-3 rounded-md text-[10px] uppercase tracking-wider border font-mono transition duration-200 ${currentStage === 'review' ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400 ring-1 ring-indigo-500/20' : 'border-white/5 bg-transparent text-[#E0E0E0]/40'}`}>
-            2. Review
-          </span>
-          <span className="text-white/20 text-xs font-mono">/</span>
-          <span className={`p-1 px-3 rounded-md text-[10px] uppercase tracking-wider border font-mono transition duration-200 ${currentStage === 'session' ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400 ring-1 ring-indigo-500/20' : 'border-white/5 bg-transparent text-[#E0E0E0]/40'}`}>
-            3. Live Board
-          </span>
-          <span className="text-white/20 text-xs font-mono">/</span>
-          <span className={`p-1 px-3 rounded-md text-[10px] uppercase tracking-wider border font-mono transition duration-200 ${currentStage === 'followup' ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400 ring-1 ring-indigo-500/20' : 'border-white/5 bg-transparent text-[#E0E0E0]/40'}`}>
-            {assessmentMode === 'ai' ? '4. AI Inquiry' : '4. Oral Examination'}
-          </span>
-          <span className="text-white/20 text-xs font-mono">/</span>
-          <span className={`p-1 px-3 rounded-md text-[10px] uppercase tracking-wider border font-mono transition duration-200 ${currentStage === 'report' ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400 ring-1 ring-indigo-500/20' : 'border-white/5 bg-transparent text-[#E0E0E0]/40'}`}>
-            5. final evaluation
-          </span>
-        </div>
+        <nav aria-label="Defense session phases" className="max-w-7xl mx-auto px-6 mt-4 flex items-center gap-2 overflow-x-auto py-1">
+          <span className="text-xs uppercase tracking-widest text-[#E0E0E0]/30 mr-2" aria-hidden="true">Phase:</span>
+          {[
+            { key: 'setup',    label: '1. Ingest' },
+            { key: 'review',   label: '2. Review' },
+            { key: 'session',  label: '3. Live Board' },
+            { key: 'followup', label: assessmentMode === 'ai' ? '4. AI Inquiry' : '4. Oral Examination' },
+            { key: 'report',   label: '5. Final Evaluation' },
+          ].map((phase, i, arr) => (
+            <React.Fragment key={phase.key}>
+              <span
+                aria-current={currentStage === phase.key ? 'step' : undefined}
+                className={`p-2 px-3 rounded-md text-sm border font-mono transition duration-200 ${
+                  currentStage === phase.key
+                    ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400 ring-1 ring-indigo-500/20'
+                    : 'border-white/5 bg-transparent text-[#E0E0E0]/40'
+                }`}
+              >
+                {phase.label}
+              </span>
+              {i < arr.length - 1 && (
+                <span className="text-white/20 text-sm font-mono" aria-hidden="true">/</span>
+              )}
+            </React.Fragment>
+          ))}
+        </nav>
       </header>
 
       {/* Primary body view switcher container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-6 md:p-8">
+      <main id="main-content" className="flex-1 max-w-7xl w-full mx-auto p-6 md:p-8" role="main">
         
         {/* Dynamic stage route router mapping */}
         {currentStage === 'dashboard' && (
@@ -617,6 +664,7 @@ export default function App() {
               setSessionId(newId);
               setCurrentQuestionIndex(0);
               setActiveWorkspaceTab('diagram');
+              setRole('both'); // always reset to combined view for new session
               setCurrentStage('setup');
               console.log(`[WhiteboardDefense] New session started: ${newId}`);
             }}
@@ -677,6 +725,7 @@ export default function App() {
             snapshots={snapshots}
             wsRef={wsRef}
             onProgressToChat={() => setCurrentStage('followup')}
+            onBackToDashboard={() => setCurrentStage('dashboard')}
           />
         )}
 

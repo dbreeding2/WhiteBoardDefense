@@ -4,7 +4,7 @@ import { QRCodeSVG } from "qrcode.react";
 import Whiteboard from "./Whiteboard";
 import WordProcessor from "./WordProcessor";
 import DiagramBuilder from "./DiagramBuilder";
-import { ChevronLeft, ChevronRight, Share2, Award, Users, AlertCircle, Palette, FileText, Network } from "lucide-react";
+import { ChevronLeft, ChevronRight, Share2, Award, Users, AlertCircle, Palette, FileText, Network, Monitor } from "lucide-react";
 
 interface DefenseSessionProps {
   sessionId: string;
@@ -22,6 +22,7 @@ interface DefenseSessionProps {
   snapshots: string[];
   wsRef: React.MutableRefObject<WebSocket | null>;
   onProgressToChat: () => void;
+  onBackToDashboard: () => void;
 }
 
 // Keywords in focusConcept that should auto-suggest the diagram tab
@@ -53,6 +54,7 @@ export default function DefenseSession({
   snapshots,
   wsRef,
   onProgressToChat,
+  onBackToDashboard,
 }: DefenseSessionProps) {
   const [showQR, setShowQR] = useState(false);
   const [syncToast, setSyncToast] = useState(false);
@@ -64,7 +66,16 @@ export default function DefenseSession({
   };
   const currentQuestion = questions[currentQuestionIndex];
 
-  const shareUrl = `${window.location.origin}/?sessionId=${sessionId}&role=student`;
+  const [serverBaseUrl, setServerBaseUrl] = useState(window.location.origin);
+
+  useEffect(() => {
+    fetch("/api/server-info")
+      .then(r => r.json())
+      .then(data => { if (data.baseUrl) setServerBaseUrl(data.baseUrl); })
+      .catch(() => {}); // fall back to window.location.origin
+  }, []);
+
+  const shareUrl = `${serverBaseUrl}/?sessionId=${sessionId}&role=student`;
 
   // Auto-suggest diagram tab when question changes to a topology/architecture concept
   useEffect(() => {
@@ -125,15 +136,15 @@ export default function DefenseSession({
       <div className="bg-[#111] text-white rounded-2xl p-6 shadow-xl border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="text-[10px] uppercase font-bold tracking-widest bg-emerald-900/30 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded">
-              Active Defense Panel
+            <span className="text-sm uppercase font-bold tracking-widest bg-emerald-900/30 text-emerald-400 border border-emerald-500/20 px-2 py-1 rounded" role="status">
+              <span aria-hidden="true">&#9679;</span> Active Defense Panel
             </span>
-            <span className="text-xs font-mono text-white/50">
+            <span className="text-sm font-mono text-white/50">
               ID: <span className="text-white font-bold">{sessionId}</span>
             </span>
           </div>
           <h2 className="text-xl font-serif italic text-white/95">Stage 3 -- Whiteboard In-Depth Probing</h2>
-          <p className="text-xs text-white/40">
+          <p className="text-sm text-white/40">
             Student answers questions by drawing, typing, or constructing a network diagram on the live board.
           </p>
         </div>
@@ -142,21 +153,35 @@ export default function DefenseSession({
           {role !== "student" && (
             <button
               type="button"
-              onClick={() => setShowQR(!showQR)}
-              className="flex items-center gap-1.5 bg-white/5 border border-white/15 text-white hover:bg-white/10 p-2.5 px-4 rounded-xl text-xs font-semibold transition"
+              onClick={() => {
+                if (window.confirm("Return to dashboard? The current session will remain active.")) {
+                  onBackToDashboard();
+                }
+              }}
+              aria-label="Return to instructor dashboard"
+              className="flex items-center gap-1.5 bg-white/5 border border-white/15 text-white/60 hover:text-white hover:bg-white/10 p-2.5 px-4 rounded-xl text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
-              <Share2 className="w-3.5 h-3.5 text-indigo-400" /> Share Student Board
+              <Monitor className="w-3.5 h-3.5 text-indigo-400" aria-hidden="true" /> Dashboard
             </button>
           )}
           {role !== "student" && (
             <button
               type="button"
-              onClick={onProgressToChat}
-              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white p-2.5 px-5 rounded-xl text-xs font-bold shadow-md transition hover:scale-105 active:scale-95"
+              onClick={() => setShowQR(!showQR)}
+              aria-label="Share student board link"
+              className="flex items-center gap-1.5 bg-white/5 border border-white/15 text-white hover:bg-white/10 p-2.5 px-4 rounded-xl text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
-              Proceed to AI Probing Chat <Award className="w-3.5 h-3.5" />
+              <Share2 className="w-3.5 h-3.5 text-indigo-400" aria-hidden="true" /> Share Student Board
             </button>
           )}
+          <button
+            type="button"
+            onClick={onProgressToChat}
+            aria-label="Proceed to AI probing chat"
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white p-2.5 px-5 rounded-xl text-sm font-bold shadow-md transition hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          >
+            Proceed to AI Probing Chat <Award className="w-3.5 h-3.5" aria-hidden="true" />
+          </button>
         </div>
       </div>
 
@@ -208,12 +233,9 @@ export default function DefenseSession({
                     key={q.id}
                     type="button"
                     onClick={() => {
-                      if (role === "student") { showSyncToast(); return; }
                       changeSlide(idx);
                     }}
                     className={`w-full text-left p-2.5 rounded-lg border text-xs font-sans transition flex items-center gap-2 ${
-                      role === "student" ? "cursor-default" : ""
-                    } ${
                       isActive
                         ? "bg-indigo-600/10 border-indigo-500/40 text-indigo-400 font-semibold"
                         : "bg-black/30 border-white/5 hover:border-white/20 text-white/70 hover:text-white"
@@ -373,25 +395,27 @@ export default function DefenseSession({
           </div>
 
           {/* Pagination */}
-          <div className="flex items-center justify-between pt-1">
+          <div className="flex items-center justify-between pt-2">
             <button
               type="button"
               onClick={() => changeSlide(currentQuestionIndex - 1)}
-              disabled={currentQuestionIndex === 0 || role === "student"}
-              className="flex items-center gap-1 border border-white/10 hover:bg-white/5 text-white font-semibold text-xs rounded-xl p-2 px-4 disabled:opacity-40 transition"
+              disabled={currentQuestionIndex === 0}
+              aria-label={`Go to question ${currentQuestionIndex}`}
+              className="flex items-center gap-2 border border-white/30 hover:border-white/60 hover:bg-white/10 text-white font-semibold text-sm rounded-xl px-5 py-2.5 disabled:opacity-30 disabled:cursor-not-allowed transition focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
-              <ChevronLeft className="w-3.5 h-3.5" /> Previous Question
+              <ChevronLeft className="w-4 h-4" aria-hidden="true" /> Previous Question
             </button>
-            <div className="text-xs text-white/40 font-mono">
+            <div className="text-sm text-white/50 font-mono">
               Active Question {currentQuestionIndex + 1} of {questions.length}
             </div>
             <button
               type="button"
               onClick={() => changeSlide(currentQuestionIndex + 1)}
-              disabled={currentQuestionIndex === questions.length - 1 || role === "student"}
-              className="flex items-center gap-1 border border-white/10 hover:bg-white/5 text-white font-semibold text-xs rounded-xl p-2 px-4 disabled:opacity-40 transition"
+              disabled={currentQuestionIndex === questions.length - 1}
+              aria-label={`Go to question ${currentQuestionIndex + 2}`}
+              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 border border-indigo-500 text-white font-semibold text-sm rounded-xl px-5 py-2.5 disabled:opacity-30 disabled:cursor-not-allowed transition focus:outline-none focus:ring-2 focus:ring-indigo-400"
             >
-              Next Question <ChevronRight className="w-3.5 h-3.5" />
+              Next Question <ChevronRight className="w-4 h-4" aria-hidden="true" />
             </button>
           </div>
         </div>

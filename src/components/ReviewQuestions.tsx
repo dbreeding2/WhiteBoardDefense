@@ -45,6 +45,7 @@ export default function ReviewQuestions({
   });
 
   const [showFullText, setShowFullText] = useState(false);
+  const prevQuestionsRef = React.useRef<DefenseQuestion[]>(questions);
 
   const wordCount = pastedText ? pastedText.trim().split(/\s+/).filter(Boolean).length : 0;
   const charCount = pastedText ? pastedText.length : 0;
@@ -62,9 +63,27 @@ export default function ReviewQuestions({
   };
   const activeLabel = activityType ? (activityLabels[activityType] || "Material") : "Resource";
 
-  // Sync edits
+  // Sync edits: merge incoming updates (e.g. a single regenerated question)
+  // into the local draft instead of blindly overwriting it -- previously this
+  // discarded unsaved edits to *every other* question whenever just one
+  // question changed upstream (which happens on every regeneration).
   React.useEffect(() => {
-    setEditedQuestions(questions);
+    const prevByNum = new Map(prevQuestionsRef.current.map((q) => [q.num, q]));
+    setEditedQuestions((prevEdited) => {
+      const editedByNum = new Map(prevEdited.map((q) => [q.num, q]));
+      return questions.map((incoming) => {
+        const before = prevByNum.get(incoming.num);
+        const changedUpstream =
+          !before ||
+          before.id !== incoming.id ||
+          before.questionText !== incoming.questionText ||
+          before.focusConcept !== incoming.focusConcept;
+        // Freshly regenerated (or brand new) -- take the upstream version.
+        // Otherwise keep whatever local draft exists for this question.
+        return changedUpstream ? incoming : (editedByNum.get(incoming.num) || incoming);
+      });
+    });
+    prevQuestionsRef.current = questions;
   }, [questions]);
 
   const handleTextChange = (id: string, newText: string) => {
@@ -101,7 +120,13 @@ export default function ReviewQuestions({
   };
 
   const handleLaunch = () => {
-    onQuestionsConfirmed(editedQuestions);
+    // If a question is still mid-edit (buffered in editedText but not yet
+    // saved), commit it now -- previously launching mid-edit silently
+    // discarded that edit because only an explicit "Save" click applied it.
+    const finalQuestions = editingId
+      ? editedQuestions.map((q) => (q.id === editingId ? { ...q, questionText: editedText } : q))
+      : editedQuestions;
+    onQuestionsConfirmed(finalQuestions);
   };
 
   const currentRegenQuestion = editedQuestions.find((q) => q.num === selectedNum);
@@ -138,7 +163,12 @@ export default function ReviewQuestions({
             return (
               <div
                 key={q.id}
-                onClick={() => setSelectedNum(q.num)}
+                onClick={() => {
+                  if (editingId && editingId !== q.id) {
+                    saveInlineEdit(editingId);
+                  }
+                  setSelectedNum(q.num);
+                }}
                 className={`p-4 rounded-xl border text-left cursor-pointer transition duration-150 ${
                   selectedNum === q.num
                     ? "bg-[#161622] border-indigo-500/50 ring-2 ring-indigo-500/10"

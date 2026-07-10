@@ -91,8 +91,16 @@ export default function WordProcessor({
     }
   }, [value]);
 
-  // Reset or restore when question changes
+  // Reset or restore when question changes.
+  // Skip the very first run -- initial mount already got its state from
+  // getInitialState() above, and re-running this with an empty `value`
+  // would immediately wipe out the default template before the user sees it.
+  const isFirstQuestionMount = useRef(true);
   useEffect(() => {
+    if (isFirstQuestionMount.current) {
+      isFirstQuestionMount.current = false;
+      return;
+    }
     if (value) {
       // Restore saved state for this question
       try {

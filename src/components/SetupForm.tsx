@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 
 interface SetupFormProps {
-  onSetupComplete: (studentName: string, paperTitle: string, courseName: string, pastedText: string, activityType: string, assessmentMode: 'ai' | 'instructor') => void;
+  onSetupComplete: (studentName: string, paperTitle: string, courseName: string, pastedText: string, activityType: string, assessmentMode: 'ai' | 'instructor', pastedDiagram: string | null) => void;
   isLoading: boolean;
   assessmentMode: 'ai' | 'instructor';
   setAssessmentMode: (mode: 'ai' | 'instructor') => void;
@@ -287,7 +287,7 @@ export default function SetupForm({ onSetupComplete, isLoading, assessmentMode, 
       alert(`Please provide at least a ${currentConfig.titleLabel} and paste the core activity or submission contents.`);
       return;
     }
-    onSetupComplete(studentName, paperTitle, courseName, pastedText, activityType, assessmentMode);
+    onSetupComplete(studentName, paperTitle, courseName, pastedText, activityType, assessmentMode, pastedDiagram);
   };
 
   return (

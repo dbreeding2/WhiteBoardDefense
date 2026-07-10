@@ -391,9 +391,48 @@ app.get("/api/defense/session-questions/:sessionId", (req, res) => {
   return res.json(data);
 });
 
+// Dismiss/remove a session from dashboard
+app.delete("/api/defense/session-questions/:sessionId", (req, res) => {
+  sessionQuestionStore.delete(req.params.sessionId);
+  sessionMetas.delete(req.params.sessionId);
+  broadcastDashboard();
+  return res.json({ ok: true });
+});
+
 // Dashboard polls for all active sessions
 app.get("/api/defense/dashboard-sessions", (_req, res) => {
   return res.json({ sessions: Array.from(sessionMetas.values()) });
+});
+
+// --- API: Server network info for share links ----------------------------
+app.get("/api/server-info", (_req, res) => {
+  // Allow explicit override via .env
+  const envIp = process.env.SERVER_IP;
+  if (envIp) {
+    return res.json({ ip: envIp, port: PORT, baseUrl: `http://${envIp}:${PORT}` });
+  }
+
+  const { networkInterfaces } = require("os");
+  const nets = networkInterfaces();
+  const candidates: string[] = [];
+
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name]) {
+      if (net.family === "IPv4" && !net.internal) {
+        candidates.push(net.address);
+      }
+    }
+  }
+
+  // Prefer 192.168.0.x / 10.x.x.x / 172.16-31.x.x over virtual adapters
+  const preferred = candidates.find(ip =>
+    ip.startsWith("192.168.0.") ||
+    ip.startsWith("192.168.1.") ||
+    ip.startsWith("10.") ||
+    (ip.startsWith("172.") && parseInt(ip.split(".")[1]) >= 16 && parseInt(ip.split(".")[1]) <= 31)
+  ) || candidates[0] || "localhost";
+
+  return res.json({ ip: preferred, port: PORT, baseUrl: `http://${preferred}:${PORT}` });
 });
 
 // --- API: Generate 8 defense questions ---------------------------------------

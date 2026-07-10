@@ -607,15 +607,17 @@ export default function FollowUpChat({
                     : "Answer follow-up, refer to your whiteboard drawings..."
                 }
                 disabled={isAiResponding}
-                className="flex-1 bg-black border border-white/10 rounded-xl p-3 px-4 text-xs outline-none focus:border-indigo-500 focus:bg-[#1a1a1a] transition text-white placeholder-white/20"
+                className="flex-1 bg-black border border-white/10 rounded-xl p-3 px-4 text-sm outline-none focus:border-indigo-500 focus:bg-[#1a1a1a] transition text-white placeholder-white/30 disabled:opacity-50"
               />
               <button
                 type="submit"
                 id="followup-chat-send-btn"
                 disabled={isAiResponding || !inputText.trim()}
-                className="p-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow disabled:opacity-50 active:scale-95 transition shrink-0 cursor-pointer"
+                aria-label="Send answer"
+                className="flex items-center gap-2 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl shadow disabled:opacity-40 active:scale-95 transition shrink-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-400"
               >
-                <Send className="w-4 h-4" />
+                <Send className="w-4 h-4" aria-hidden="true" />
+                Send
               </button>
             </div>
             <div className="flex items-center justify-between text-[10px] text-white/30 px-1 font-mono">

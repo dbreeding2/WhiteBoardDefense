@@ -926,9 +926,9 @@ Respond ONLY with valid JSON, no markdown fences:
   return (
     <div className="space-y-3">
       {/* Hint bar */}
-      <div className="bg-indigo-950/30 border border-indigo-500/20 rounded-xl px-4 py-2.5 flex items-start gap-2">
-        <Network className="w-3.5 h-3.5 text-indigo-400 mt-0.5 shrink-0" />
-        <p className="text-xs text-indigo-300/80 leading-relaxed">
+      <div className="bg-indigo-950/30 border border-indigo-500/20 rounded-xl px-4 py-2.5 flex items-start gap-2" role="note">
+        <Network className="w-3.5 h-3.5 text-indigo-400 mt-0.5 shrink-0" aria-hidden="true" />
+        <p className="text-sm text-indigo-300/80 leading-relaxed">
           <span className="font-bold text-indigo-300">Diagram task: </span>{scenario.hint}
           <span className="text-indigo-400/60 ml-2">{"· Click palette item to place · Drag a node handle to connect · Click a link to edit"}</span>
         </p>
@@ -975,6 +975,8 @@ Respond ONLY with valid JSON, no markdown fences:
           ref={canvasRef}
           width={660}
           height={400}
+          role="img"
+          aria-label="Network diagram canvas. Use the palette above to add components, then connect them by hovering a node and dragging from its handles."
           style={{ display: "block", width: "100%", height: "auto" }}
         />
       </div>
@@ -1205,85 +1207,99 @@ Respond ONLY with valid JSON, no markdown fences:
         </button>
         <button
           type="button"
-          onClick={clearCanvas}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 text-white/40 text-xs font-bold hover:text-white/60 hover:bg-white/5 transition"
+          onClick={() => {
+            if (window.confirm("Clear the diagram? This cannot be undone.")) clearCanvas();
+          }}
+          aria-label="Clear all diagram elements"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-white/10 text-white/40 text-sm font-bold hover:text-white/60 hover:bg-white/5 transition focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
-          <Trash2 className="w-3 h-3" /> Clear
+          <Trash2 className="w-3.5 h-3.5" aria-hidden="true" /> Clear
         </button>
         <button
           type="button"
-          onClick={() => { clearCanvas(); setScenario(detectScenario(focusConcept)); }}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 text-white/40 text-xs font-bold hover:text-white/60 hover:bg-white/5 transition"
+          onClick={() => {
+            if (window.confirm("Reset the diagram and reload the scenario palette?")) {
+              clearCanvas(); setScenario(detectScenario(focusConcept));
+            }
+          }}
+          aria-label="Reset diagram and reload scenario"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-white/10 text-white/40 text-sm font-bold hover:text-white/60 hover:bg-white/5 transition focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
-          <RefreshCw className="w-3 h-3" /> Reset
+          <RefreshCw className="w-3.5 h-3.5" aria-hidden="true" /> Reset
         </button>
         <button
           type="button"
           onClick={captureSnapshot}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-900/50 text-emerald-400 text-xs font-bold hover:bg-emerald-950/30 transition ml-auto"
+          aria-label="Save diagram as snapshot for the report"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-emerald-900/50 text-emerald-400 text-sm font-bold hover:bg-emerald-950/30 transition ml-auto focus:outline-none focus:ring-2 focus:ring-emerald-500"
         >
-          <CheckCircle className="w-3 h-3" /> Save snapshot
+          <CheckCircle className="w-3.5 h-3.5" aria-hidden="true" /> Save snapshot
         </button>
         <button
           type="button"
           onClick={evaluate}
           disabled={evaluating || nodes.length === 0}
-          className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white text-xs font-bold transition"
+          aria-label="Evaluate diagram with AI"
+          aria-busy={evaluating}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white text-sm font-bold transition focus:outline-none focus:ring-2 focus:ring-indigo-400"
         >
           {evaluating ? (
-            <><RefreshCw className="w-3 h-3 animate-spin" /> Evaluating...</>
+            <><RefreshCw className="w-3.5 h-3.5 animate-spin" aria-hidden="true" /> Evaluating...</>
           ) : (
-            <><CheckCircle className="w-3 h-3" /> Evaluate diagram</>
+            <><CheckCircle className="w-3.5 h-3.5" aria-hidden="true" /> Evaluate diagram</>
           )}
         </button>
       </div>
 
       {/* Evaluation results */}
       {evaluation && (
-        <div className="bg-[#0d0d11] border border-white/5 rounded-xl p-4 space-y-3">
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-bold text-white/60 uppercase tracking-widest font-mono">Diagram evaluation</span>
-            <span className={`ml-auto px-2.5 py-0.5 rounded-full text-xs font-bold font-mono ${
+        <div className="bg-[#0d0d11] border border-white/5 rounded-xl p-4 space-y-3" role="region" aria-label="Diagram evaluation results" aria-live="polite">
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="text-sm font-bold text-white/60 uppercase tracking-widest font-mono">Diagram evaluation</span>
+            <span className={`ml-auto px-2.5 py-1 rounded-full text-sm font-bold font-mono ${
               evaluation.overallScore >= 8 ? "bg-emerald-950/40 text-emerald-400 border border-emerald-900/50"
               : evaluation.overallScore >= 6 ? "bg-amber-950/40 text-amber-400 border border-amber-900/50"
               : "bg-red-950/40 text-red-400 border border-red-900/50"
             }`}>
-              {evaluation.overallScore}/10
+              <span aria-label={`Score: ${evaluation.overallScore} out of 10`}>{evaluation.overallScore}/10</span>
             </span>
-            <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold font-mono ${
+            <span className={`px-2.5 py-1 rounded-full text-sm font-bold font-mono ${
               evaluation.integritySignal === "low" ? "bg-emerald-950/40 text-emerald-400 border border-emerald-900/50"
               : evaluation.integritySignal === "medium" ? "bg-amber-950/40 text-amber-400 border border-amber-900/50"
               : "bg-red-950/40 text-red-400 border border-red-900/50"
             }`}>
-              {evaluation.integritySignal === "low" ? "v Low concern"
-               : evaluation.integritySignal === "medium" ? "? Review needed"
-               : "? Flagged"}
+              {evaluation.integritySignal === "low"
+                ? <><CheckCircle className="w-3.5 h-3.5 inline mr-1" aria-hidden="true" />Low concern</>
+                : evaluation.integritySignal === "medium"
+                  ? <><AlertTriangle className="w-3.5 h-3.5 inline mr-1" aria-hidden="true" />Review needed</>
+                  : <><AlertTriangle className="w-3.5 h-3.5 inline mr-1" aria-hidden="true" />Flagged</>}
             </span>
           </div>
 
           <div className="space-y-2">
             {evaluation.checks.map((c, i) => (
-              <div key={i} className="flex items-start gap-2.5 text-xs">
-                <span className={`mt-0.5 shrink-0 ${c.pass ? "text-emerald-400" : "text-red-400"}`}>
-                  {c.pass ? "v" : "?"}
+              <div key={i} className="flex items-start gap-2.5 text-sm">
+                <span className={`mt-0.5 shrink-0 font-bold ${c.pass ? "text-emerald-400" : "text-red-400"}`} aria-hidden="true">
+                  {c.pass ? "✓" : "✗"}
                 </span>
                 <div>
                   <span className="font-bold text-white/70">{c.label}</span>
                   <span className="text-white/40 ml-2">{c.note}</span>
                 </div>
+                <span className="sr-only">{c.pass ? "Pass" : "Fail"}: {c.label}. {c.note}</span>
               </div>
             ))}
             {evaluation.missingConcepts.length > 0 && (
-              <div className="flex items-start gap-2.5 text-xs">
-                <AlertTriangle className="w-3 h-3 text-amber-400 mt-0.5 shrink-0" />
+              <div className="flex items-start gap-2.5 text-sm">
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-400 mt-0.5 shrink-0" aria-hidden="true" />
                 <div>
                   <span className="font-bold text-white/70">Missing concepts</span>
                   <span className="text-white/40 ml-2">{evaluation.missingConcepts.join(", ")}</span>
                 </div>
               </div>
             )}
-            <div className="flex items-start gap-2.5 text-xs pt-1 border-t border-white/5">
-              <span className="text-white/20 shrink-0">?</span>
+            <div className="flex items-start gap-2.5 text-sm pt-1 border-t border-white/5">
+              <span className="text-white/20 shrink-0" aria-hidden="true">--</span>
               <span className="text-white/40 italic">{evaluation.integrityNote}</span>
             </div>
           </div>

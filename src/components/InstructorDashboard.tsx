@@ -48,7 +48,16 @@ export default function InstructorDashboard({ wsRef, onNewSession }: InstructorD
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
   const [tick, setTick] = useState(0);
+  const [serverBaseUrl, setServerBaseUrl] = useState(window.location.origin);
   const dashWsRef = useRef<WebSocket | null>(null);
+
+  // Fetch real server IP for share links
+  useEffect(() => {
+    fetch("/api/server-info")
+      .then(r => r.json())
+      .then(data => { if (data.baseUrl) setServerBaseUrl(data.baseUrl); })
+      .catch(() => {});
+  }, []);
 
   // Connect dedicated dashboard WebSocket
   useEffect(() => {
@@ -98,7 +107,7 @@ export default function InstructorDashboard({ wsRef, onNewSession }: InstructorD
   }, []);
 
   const copyLink = (sessionId: string) => {
-    const url = `${window.location.origin}/?sessionId=${sessionId}&role=student`;
+    const url = `${serverBaseUrl}/?sessionId=${sessionId}&role=student`;
     navigator.clipboard.writeText(url).then(() => {
       setCopiedId(sessionId);
       setTimeout(() => setCopiedId(null), 2000);
@@ -106,7 +115,7 @@ export default function InstructorDashboard({ wsRef, onNewSession }: InstructorD
   };
 
   const openSession = (sessionId: string) => {
-    window.open(`${window.location.origin}/?sessionId=${sessionId}&role=instructor`, "_blank");
+    window.open(`${serverBaseUrl}/?sessionId=${sessionId}&role=instructor`, "_blank");
   };
 
   const activeSessions = sessions.filter(s => s.stage !== "complete");
@@ -160,7 +169,7 @@ export default function InstructorDashboard({ wsRef, onNewSession }: InstructorD
       {/* Active sessions grid */}
       {activeSessions.length > 0 && (
         <div className="mb-8">
-          <h2 className="text-[10px] font-bold uppercase tracking-widest text-white/30 mb-3">Active Sessions</h2>
+          <h2 className="text-sm font-bold uppercase tracking-widest text-white/30 mb-3">Active Sessions</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {activeSessions.map(session => {
               const stageInfo = STAGE_LABELS[session.stage] || STAGE_LABELS.session;
@@ -173,15 +182,14 @@ export default function InstructorDashboard({ wsRef, onNewSession }: InstructorD
                   {/* Thumbnail */}
                   <div className="relative h-36 bg-[#080810] flex items-center justify-center overflow-hidden border-b border-white/5">
                     {session.thumbnail ? (
-                      <img src={session.thumbnail} alt="Latest whiteboard" className="w-full h-full object-contain" />
+                      <img src={session.thumbnail} alt={`Latest whiteboard for session ${session.sessionId}`} className="w-full h-full object-contain" />
                     ) : (
                       <div className="flex flex-col items-center gap-2 text-white/20">
-                        <Layers className="w-8 h-8" />
-                        <span className="text-xs">Waiting for whiteboard activity</span>
+                        <Layers className="w-8 h-8" aria-hidden="true" />
+                        <span className="text-sm">Waiting for whiteboard activity</span>
                       </div>
                     )}
-                    {/* Stage badge overlay */}
-                    <span className={`absolute top-2 right-2 text-[10px] font-bold px-2 py-0.5 rounded-full border ${stageInfo.color}`}>
+                    <span className={`absolute top-2 right-2 text-xs font-bold px-2 py-1 rounded-full border ${stageInfo.color}`}>
                       {stageInfo.label}
                     </span>
                   </div>
@@ -191,13 +199,17 @@ export default function InstructorDashboard({ wsRef, onNewSession }: InstructorD
                     <div className="flex items-start justify-between mb-2">
                       <div>
                         <div className="font-bold text-white text-sm truncate max-w-[180px]">
-                          {session.studentName || "Student"}
+                          {session.studentName && session.studentName !== "Student Candidate"
+                            ? session.studentName
+                            : "Awaiting student..."}
                         </div>
-                        <div className="text-white/40 text-xs truncate max-w-[180px]">
-                          {session.paperTitle || "Untitled"} . {session.courseCode || "--"}
+                        <div className="text-white/40 text-sm truncate max-w-[180px]">
+                          {session.paperTitle && session.paperTitle !== "Oral Defense Presentation"
+                            ? `${session.paperTitle} · ${session.courseCode || "--"}`
+                            : "Student has not yet joined"}
                         </div>
                       </div>
-                      <span className="font-mono text-[10px] text-white/30 bg-white/5 px-2 py-0.5 rounded border border-white/8">
+                      <span className="font-mono text-xs text-white/30 bg-white/5 px-2 py-1 rounded border border-white/10">
                         {session.sessionId}
                       </span>
                     </div>
@@ -219,31 +231,47 @@ export default function InstructorDashboard({ wsRef, onNewSession }: InstructorD
                     )}
 
                     {/* Meta row */}
-                    <div className="flex items-center gap-3 text-[10px] text-white/30 mb-3">
+                    <div className="flex items-center gap-3 text-sm text-white/30 mb-3">
                       <span className="flex items-center gap-1">
-                        <Clock className="w-3 h-3" /> {duration(session.startedAt)}
+                        <Clock className="w-3.5 h-3.5" aria-hidden="true" /> {duration(session.startedAt)}
                       </span>
-                      <span>. Active {elapsed(session.lastActivity)}</span>
+                      <span>· Active {elapsed(session.lastActivity)}</span>
                     </div>
 
                     {/* Actions */}
                     <div className="flex gap-2">
                       <button
+                        type="button"
                         onClick={() => copyLink(session.sessionId)}
-                        title={`Copy student link for session ${session.sessionId}`}
-                        className="flex-1 flex items-center justify-center gap-1.5 text-[11px] font-semibold border border-white/10 hover:bg-white/5 text-white/60 hover:text-white py-1.5 rounded-lg transition"
+                        aria-label={`Copy student link for session ${session.sessionId}`}
+                        className="flex-1 flex items-center justify-center gap-1.5 text-sm font-semibold border border-white/10 hover:bg-white/5 text-white/60 hover:text-white py-2 rounded-lg transition focus:outline-none focus:ring-2 focus:ring-indigo-500 whitespace-nowrap"
                       >
                         {copiedId === session.sessionId
-                          ? <><CheckCircle className="w-3 h-3 text-emerald-400" /> Copied! ({session.sessionId})</>
-                          : <><Copy className="w-3 h-3" /> Copy Link ({session.sessionId})</>}
+                          ? <><CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" aria-hidden="true" /> Copied!</>
+                          : <><Copy className="w-3.5 h-3.5 shrink-0" aria-hidden="true" /> Copy Link</>}
                       </button>
                       <button
+                        type="button"
                         onClick={() => openSession(session.sessionId)}
-                        className="flex-1 flex items-center justify-center gap-1.5 text-[11px] font-semibold bg-indigo-600/20 hover:bg-indigo-600/40 border border-indigo-500/30 text-indigo-400 py-1.5 rounded-lg transition"
+                        aria-label={`View session ${session.sessionId}`}
+                        className="flex-1 flex items-center justify-center gap-1.5 text-sm font-semibold bg-indigo-600/20 hover:bg-indigo-600/40 border border-indigo-500/30 text-indigo-400 py-2 rounded-lg transition focus:outline-none focus:ring-2 focus:ring-indigo-500"
                       >
-                        View Session <ChevronRight className="w-3 h-3" />
+                        View Session <ChevronRight className="w-3.5 h-3.5" aria-hidden="true" />
                       </button>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (window.confirm(`Remove session ${session.sessionId} from the dashboard?`)) {
+                          setSessions(prev => prev.filter(s => s.sessionId !== session.sessionId));
+                          fetch(`/api/defense/session-questions/${session.sessionId}`, { method: "DELETE" }).catch(() => {});
+                        }
+                      }}
+                      aria-label={`Remove session ${session.sessionId} from dashboard`}
+                      className="w-full mt-2 flex items-center justify-center gap-1.5 text-sm font-semibold border border-red-900/30 text-red-400/60 hover:text-red-400 hover:bg-red-950/20 py-1.5 rounded-lg transition focus:outline-none focus:ring-2 focus:ring-red-500"
+                    >
+                      Remove Session
+                    </button>
                   </div>
                 </div>
               );
@@ -251,10 +279,12 @@ export default function InstructorDashboard({ wsRef, onNewSession }: InstructorD
 
             {/* Add new session card */}
             <button
+              type="button"
               onClick={onNewSession}
-              className="h-full min-h-[280px] border border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center gap-3 text-white/20 hover:text-white/40 hover:border-white/20 transition group"
+              aria-label="Start a new defense session"
+              className="h-full min-h-[280px] border border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center gap-3 text-white/20 hover:text-white/40 hover:border-white/20 transition group focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
-              <div className="w-12 h-12 rounded-xl border border-dashed border-current flex items-center justify-center group-hover:scale-110 transition">
+              <div className="w-12 h-12 rounded-xl border border-dashed border-current flex items-center justify-center group-hover:scale-110 transition" aria-hidden="true">
                 <Plus className="w-6 h-6" />
               </div>
               <span className="text-sm font-semibold">Add Student Session</span>
@@ -266,21 +296,21 @@ export default function InstructorDashboard({ wsRef, onNewSession }: InstructorD
       {/* Completed sessions */}
       {completedSessions.length > 0 && (
         <div>
-          <h2 className="text-[10px] font-bold uppercase tracking-widest text-white/30 mb-3">Completed This Session</h2>
+          <h2 className="text-sm font-bold uppercase tracking-widest text-white/30 mb-3">Completed This Session</h2>
           <div className="space-y-2">
             {completedSessions.map(session => (
-              <div key={session.sessionId} className="flex items-center gap-4 bg-white/3 border border-white/5 rounded-xl px-4 py-3">
-                <CheckCircle className="w-4 h-4 text-emerald-400/50 shrink-0" />
+              <div key={session.sessionId} className="flex items-center gap-4 bg-white/5 border border-white/5 rounded-xl px-4 py-3">
+                <CheckCircle className="w-4 h-4 text-emerald-400/50 shrink-0" aria-hidden="true" />
                 <div className="flex-1 min-w-0">
                   <span className="text-white/50 text-sm font-semibold truncate block">
                     {session.studentName || "Student"}
                   </span>
-                  <span className="text-white/25 text-xs truncate block">
-                    {session.paperTitle} . {session.courseCode}
+                  <span className="text-white/40 text-sm truncate block">
+                    {session.paperTitle} · {session.courseCode}
                   </span>
                 </div>
-                <span className="text-white/25 text-xs font-mono">{session.sessionId}</span>
-                <span className="text-white/25 text-xs">{duration(session.startedAt)}</span>
+                <span className="text-white/40 text-sm font-mono">{session.sessionId}</span>
+                <span className="text-white/40 text-sm">{duration(session.startedAt)}</span>
               </div>
             ))}
           </div>
@@ -289,10 +319,10 @@ export default function InstructorDashboard({ wsRef, onNewSession }: InstructorD
 
       {/* Dashboard URL hint */}
       <div className="mt-8 p-4 bg-white/3 border border-white/8 rounded-xl">
-        <p className="text-white/30 text-xs">
+        <p className="text-white/30 text-sm">
           <span className="text-white/50 font-semibold">Dashboard URL:</span>{" "}
-          <span className="font-mono">{window.location.origin}/?dashboard=true</span>
-          {" "}. Bookmark this to return directly to the dashboard.
+          <span className="font-mono">{serverBaseUrl}/?dashboard=true</span>
+          {" "}· Bookmark this to return directly to the dashboard.
         </p>
       </div>
     </div>

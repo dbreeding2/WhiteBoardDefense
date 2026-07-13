@@ -818,7 +818,8 @@ export default function DiagramBuilder({
     const canvas = canvasRef.current;
     if (!canvas) return;
     const b64 = canvas.toDataURL("image/png").split(",")[1];
-    onCaptureSnapshot(b64, evalResult);
+    // If no explicit evalResult passed, include the current evaluation state if it exists
+    onCaptureSnapshot(b64, evalResult !== undefined ? evalResult : evaluation || undefined);
   };
 
   const clearCanvas = () => {
@@ -893,7 +894,7 @@ Respond ONLY with valid JSON, no markdown fences:
           else data.overallScore = 0;
         }
         setEvaluation(data);
-        captureSnapshot(data); // auto-save snapshot with evaluation attached
+        // Note: student clicks "Save snapshot" explicitly to record this evaluation
       } else {
         // Fallback local evaluation
         setEvaluation({
@@ -1230,11 +1231,12 @@ Respond ONLY with valid JSON, no markdown fences:
         </button>
         <button
           type="button"
-          onClick={captureSnapshot}
+          onClick={() => captureSnapshot()}
           aria-label="Save diagram as snapshot for the report"
           className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-emerald-900/50 text-emerald-400 text-sm font-bold hover:bg-emerald-950/30 transition ml-auto focus:outline-none focus:ring-2 focus:ring-emerald-500"
         >
-          <CheckCircle className="w-3.5 h-3.5" aria-hidden="true" /> Save snapshot
+          <CheckCircle className="w-3.5 h-3.5" aria-hidden="true" />
+          {evaluation ? "Save snapshot + evaluation" : "Save snapshot"}
         </button>
         <button
           type="button"

@@ -273,14 +273,16 @@ export default function DefenseSession({
             </div>
           )}
 
-          <div className="bg-amber-950/20 border border-amber-900/40 rounded-xl p-4 space-y-2 text-left">
-            <h4 className="text-[11px] font-bold text-amber-400 uppercase tracking-widest flex items-center gap-1 font-mono">
-              <AlertCircle className="w-3.5 h-3.5 text-amber-500" /> Instructor Pro Tip
-            </h4>
-            <p className="text-[11px] text-white/50 leading-relaxed">
-              Questions marked with a <Network className="w-3 h-3 inline text-indigo-400/50" /> icon are topology or architecture questions -- switch to the <span className="text-indigo-400">Diagram Board</span> tab and have the student construct the network from components to verify genuine understanding.
-            </p>
-          </div>
+          {role !== "student" && (
+            <div className="bg-amber-950/20 border border-amber-900/40 rounded-xl p-4 space-y-2 text-left">
+              <h4 className="text-[11px] font-bold text-amber-400 uppercase tracking-widest flex items-center gap-1 font-mono">
+                <AlertCircle className="w-3.5 h-3.5 text-amber-500" /> Instructor Pro Tip
+              </h4>
+              <p className="text-[11px] text-white/50 leading-relaxed">
+                Questions marked with a <Network className="w-3 h-3 inline text-indigo-400/50" /> icon are topology or architecture questions -- switch to the <span className="text-indigo-400">Diagram Board</span> tab and have the student construct the network from components to verify genuine understanding.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Right: workspace */}
@@ -375,6 +377,8 @@ export default function DefenseSession({
               <WordProcessor
                 sessionId={sessionId}
                 questionIndex={currentQuestionIndex}
+                questionText={currentQuestion.questionText}
+                focusConcept={currentQuestion.focusConcept}
                 role={role}
                 value={allDocs[currentQuestionIndex] || ""}
                 onChange={(newValue) => onDocChange(currentQuestionIndex, newValue)}

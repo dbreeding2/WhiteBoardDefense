@@ -640,6 +640,49 @@ Return a JSON object for the replacement question:
   }
 });
 
+// --- API: Evaluate written answer -----------------------------------------
+app.post("/api/defense/evaluate-written", async (req, res) => {
+  const { questionText, answerText, focusConcept } = req.body;
+  if (!answerText || !questionText) return res.status(400).json({ error: "questionText and answerText required" });
+
+  const prompt = `You are an academic examiner evaluating a student written defense answer.
+
+Question: "${questionText}"
+Focus Concept: "${focusConcept || "General"}"
+Student Answer: "${answerText}"
+
+Evaluate on three criteria. Respond ONLY with valid JSON, no markdown:
+{
+  "overallScore": <integer 0-10>,
+  "checks": [
+    { "label": "Accuracy", "pass": <true|false>, "note": "one sentence" },
+    { "label": "Depth of Understanding", "pass": <true|false>, "note": "one sentence" },
+    { "label": "Conceptual Clarity", "pass": <true|false>, "note": "one sentence" }
+  ],
+  "missingConcepts": [],
+  "integritySignal": "low" | "medium" | "high",
+  "integrityNote": "one sentence on whether the answer appears genuine"
+}
+Scoring: all 3 pass=10, 2 pass=7, 1 pass=4, 0 pass but text present=1, empty=0.`;
+
+  try {
+    const raw = await generateText(prompt, undefined, true, 0.3);
+    const data = parseJsonResponse<any>(raw);
+    if (data.checks && Array.isArray(data.checks)) {
+      const passCount = data.checks.filter((c: any) => c.pass).length;
+      if (passCount === 3) data.overallScore = 10;
+      else if (passCount === 2) data.overallScore = 7;
+      else if (passCount === 1) data.overallScore = 4;
+      else if (answerText.trim().length > 0) data.overallScore = 1;
+      else data.overallScore = 0;
+    }
+    return res.json(data);
+  } catch (err: any) {
+    console.error("[evaluate-written] error:", err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // --- API: Evaluate diagram (DiagramBuilder component) ------------------------
 app.post("/api/defense/evaluate-diagram", async (req, res) => {
   const { prompt } = req.body as { prompt: string };
@@ -738,17 +781,23 @@ CONCLUDE: 2 sentences of closing feedback, then output EXACTLY:
 {
   "overallScore": <0-100>,
   "suspicionLevel": "Low" | "Medium" | "High",
-  "suspicionReasoning": "one sentence",
+  "suspicionReasoning": "one sentence based on actual responses in this transcript",
   "categories": [
-    {"name": "Technical Mastery", "score": <1-10>, "feedback": "one sentence"},
-    {"name": "Whiteboard Synthesis", "score": <1-10>, "feedback": "one sentence"},
-    {"name": "Integrity Verification", "score": <1-10>, "feedback": "one sentence"}
+    {"name": "Technical Mastery", "score": <1-10>, "feedback": "one sentence referencing SPECIFIC concepts from this defense"},
+    {"name": "Whiteboard Synthesis", "score": <1-10>, "feedback": "one sentence about their diagrams and written submissions in this session"},
+    {"name": "Integrity Verification", "score": <1-10>, "feedback": "one sentence about response consistency and ownership signals observed"}
   ],
-  "keyFindings": ["finding 1", "finding 2"],
-  "gapsIdentified": ["gap 1", "gap 2"],
+  "keyFindings": ["specific strength observed in THIS transcript -- name the actual topic"],
+  "gapsIdentified": ["specific gap observed in THIS transcript -- name the actual topic"],
   "recommendedGrade": "A" | "A-" | "B+" | "B" | "B-" | "C+" | "C" | "F"
 }
 </assessment>
+
+CRITICAL RULES FOR ASSESSMENT:
+- keyFindings and gapsIdentified MUST reference topics actually discussed in this transcript
+- NEVER mention topics not covered (no "neural networks", "experimental benchmarks", or anything not in the questions list above)
+- Base every finding on specific student responses visible in the transcript
+- If the student used AI-generated answers, set suspicionLevel to "High" and explain specifically what triggered it
 ` : ""}`;
 
     const base64Images: string[] = [];

@@ -16,10 +16,12 @@ import {
 interface WordProcessorProps {
   sessionId: string;
   questionIndex: number;
+  questionText?: string;
+  focusConcept?: string;
   role: "student" | "instructor" | "both";
-  value: string; // Serialized JSON string document state
+  value: string;
   onChange: (newValue: string) => void;
-  onCaptureSnapshot: (base64Image: string) => void;
+  onCaptureSnapshot: (base64Image: string, evaluation?: any) => void;
   wsRef: React.MutableRefObject<WebSocket | null>;
 }
 
@@ -37,6 +39,8 @@ interface DocState {
 export default function WordProcessor({
   sessionId,
   questionIndex,
+  questionText,
+  focusConcept,
   role,
   value,
   onChange,
@@ -62,15 +66,9 @@ export default function WordProcessor({
       // Fall through to default
     }
     return {
-      text: "Provide your analytical answer, proof outlines, or conceptual claims response here. Use the action bar or edit the template matrix directly below to structure comparative parameters, values, and proofs.",
-      hasTable: true,
-      table: {
-        headers: ["Variable / Parameter", "Theoretical Value", "Logical Justification"],
-        rows: [
-          ["e.g. Convergence Rate", "O(1/k) animate", "Direct first-order subgradient bounds"],
-          ["e.g. Beta Boundary", "? 1.96 ?", "Normal distribution bounds wrapper for error rates"]
-        ]
-      }
+      text: "",
+      hasTable: false,
+      table: { headers: [], rows: [] }
     };
   };
 
@@ -355,7 +353,21 @@ export default function WordProcessor({
 
     // Capture Base64 representation to persist snapshot
     const dataUrl = canvas.toDataURL("image/png");
-    onCaptureSnapshot(dataUrl);
+
+    // Evaluate written answer if text exists
+    const answerText = docState.text?.trim();
+    if (answerText && questionText) {
+      fetch("/api/defense/evaluate-written", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ questionText, answerText, focusConcept }),
+      })
+        .then(r => r.ok ? r.json() : null)
+        .then(evaluation => { onCaptureSnapshot(dataUrl, evaluation || undefined); })
+        .catch(() => { onCaptureSnapshot(dataUrl); });
+    } else {
+      onCaptureSnapshot(dataUrl);
+    }
   };
 
   // Text paragraph updates
@@ -545,21 +557,21 @@ export default function WordProcessor({
               onClick={() => insertTemplate("tradeoff")}
               className="px-2 py-1 text-[10.5px] font-semibold bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 rounded border border-indigo-500/10 transition cursor-pointer"
             >
-              ? Trade-offs
+              Trade-offs
             </button>
             <button
               type="button"
               onClick={() => insertTemplate("arguments")}
               className="px-2 py-1 text-[10.5px] font-semibold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 rounded border border-emerald-500/10 transition cursor-pointer"
             >
-              ? Claim Debunks
+              Claim Debunks
             </button>
             <button
               type="button"
               onClick={() => insertTemplate("outline")}
               className="px-2 py-1 text-[10.5px] font-semibold bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 rounded border border-amber-500/10 transition cursor-pointer"
             >
-              ? System Architecture
+              System Architecture
             </button>
           </div>
         )}
@@ -569,7 +581,7 @@ export default function WordProcessor({
       <div className="p-5 flex flex-col gap-6 text-left flex-1 min-h-[420px] overflow-y-auto">
         <div className="space-y-2">
           <label className="text-[10px] uppercase font-bold tracking-widest text-[#94A3B8] font-mono block">
-            ?? Part 1: Explanatory Proof & Analytical Paragraphs
+            Part 1: Explanatory Proof & Analytical Paragraphs
           </label>
           <p className="text-[11px] text-white/40">
             Articulate key mathematical steps, hypotheses responses, or definitions. Changes update and sync with the examiner immediately.

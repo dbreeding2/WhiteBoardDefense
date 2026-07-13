@@ -774,6 +774,8 @@ export default function App() {
             assessment={assessment}
             snapshots={snapshots}
             diagramEvaluations={diagramEvaluations}
+            questionDocs={allQuestionDocs}
+            questions={questions}
             onResetSession={handleReset}
             activityType={activityType}
           />

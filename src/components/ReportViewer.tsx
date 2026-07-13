@@ -18,7 +18,9 @@ interface ReportViewerProps {
   chatHistory: ChatMessage[];
   assessment: AIPreparedAssessment;
   snapshots: string[]; // base64
-  diagramEvaluations?: (DiagramEvalResult | null)[]; // per-question diagram eval
+  diagramEvaluations?: (DiagramEvalResult | null)[];
+  questionDocs?: string[];
+  questions?: { num: number; questionText: string; focusConcept: string }[];
   onResetSession: () => void;
   activityType?: string;
 }
@@ -31,6 +33,8 @@ export default function ReportViewer({
   assessment,
   snapshots,
   diagramEvaluations = [],
+  questionDocs = [],
+  questions = [],
   onResetSession,
   activityType,
 }: ReportViewerProps) {
@@ -214,16 +218,29 @@ export default function ReportViewer({
         doc.addImage(snap, "PNG", 15, currentY, 80, 55);
         doc.setFont("Helvetica", "bold");
         doc.setFontSize(11);
-        doc.text(`Snapshot #${idx + 1}: Conceptual Sketch`, 105, currentY + 8);
+        const snapLabel = evalResult ? `Snapshot #${idx + 1}: Diagram Submission` : `Snapshot #${idx + 1}: Written Submission`;
+        doc.text(snapLabel, 105, currentY + 8);
+
+        // Show question text
+        const question = questions?.[idx];
+        if (question) {
+          doc.setFont("Helvetica", "italic");
+          doc.setFontSize(8);
+          doc.setTextColor(grayTextColor[0], grayTextColor[1], grayTextColor[2]);
+          const qWrapped = doc.splitTextToSize(`Q${question.num}: ${question.questionText}`, 80);
+          const qPreview = qWrapped.slice(0, 2);
+          doc.text(qPreview, 105, currentY + 14);
+          doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+        }
 
         if (evalResult) {
           doc.setFont("Helvetica", "normal");
           doc.setFontSize(9);
           doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-          doc.text(`Diagram Score: ${evalResult.overallScore}/10`, 105, currentY + 15);
+          doc.text(`Score: ${evalResult.overallScore}/10`, 105, currentY + 26);
 
           doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-          let checkY = currentY + 21;
+          let checkY = currentY + 32;
           evalResult.checks.forEach((c) => {
             const symbol = c.pass ? "v" : "x";
             const wrapped = doc.splitTextToSize(`${symbol} ${c.label}: ${c.note}`, 80);
@@ -246,10 +263,29 @@ export default function ReportViewer({
           const note = doc.splitTextToSize(evalResult.integrityNote, 80);
           doc.text(note, 105, checkY);
         } else {
+          // Written submission -- show the actual text content
           doc.setFont("Helvetica", "normal");
           doc.setFontSize(9);
           doc.setTextColor(grayTextColor[0], grayTextColor[1], grayTextColor[2]);
-          doc.text("No diagram evaluation recorded", 105, currentY + 15);
+          let writtenText = "";
+          try {
+            const docData = questionDocs?.[idx];
+            if (docData) {
+              const parsed = JSON.parse(docData);
+              writtenText = parsed.text || "";
+            }
+          } catch {}
+          if (writtenText) {
+            const wrapped = doc.splitTextToSize(writtenText, 80);
+            const preview = wrapped.slice(0, 8); // max 8 lines
+            doc.text(preview, 105, currentY + 15);
+            if (wrapped.length > 8) {
+              doc.setFont("Helvetica", "italic");
+              doc.text("[truncated...]", 105, currentY + 15 + (preview.length * 4));
+            }
+          } else {
+            doc.text("Written answer captured in snapshot.", 105, currentY + 15);
+          }
         }
 
         doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
@@ -398,25 +434,36 @@ export default function ReportViewer({
             {snapshots.map((snap, idx) => {
               if (!snap) return null;
               const evalResult = diagramEvaluations?.[idx];
+              const question = questions?.[idx];
               return (
                 <div key={idx} className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-white/5 pt-4">
-                  {/* Snapshot thumbnail */}
-                  <div>
-                    <p className="text-xs font-mono text-white/30 mb-2">Snapshot #{idx + 1}</p>
+                  {/* Snapshot thumbnail + question */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-mono text-white/30">Snapshot #{idx + 1}</span>
+                      {evalResult && (
+                        <span className="text-xs font-mono text-indigo-400/60">{evalResult.checks ? "Diagram" : "Written"}</span>
+                      )}
+                    </div>
+                    {question && (
+                      <p className="text-xs text-white/50 italic border-l-2 border-indigo-500/20 pl-2 leading-relaxed">
+                        Q{question.num}: {question.questionText}
+                      </p>
+                    )}
                     <img
                       src={snap.startsWith("data:") ? snap : `data:image/png;base64,${snap}`}
-                      alt={`Whiteboard diagram for question ${idx + 1}`}
+                      alt={`Whiteboard snapshot for question ${idx + 1}`}
                       className="w-full rounded-lg border border-white/10"
                     />
                   </div>
-                  {/* Evaluation results */}
+                  {/* Evaluation results -- same layout for both diagram and written */}
                   <div className="space-y-3">
                     {evalResult ? (
                       <>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className={`px-2.5 py-1 rounded-full text-xs font-bold font-mono ${
                             evalResult.overallScore >= 8 ? "bg-emerald-950/40 text-emerald-400 border border-emerald-900/50"
-                            : evalResult.overallScore >= 6 ? "bg-amber-950/40 text-amber-400 border border-amber-900/50"
+                            : evalResult.overallScore >= 5 ? "bg-amber-950/40 text-amber-400 border border-amber-900/50"
                             : "bg-red-950/40 text-red-400 border border-red-900/50"
                           }`}>
                             {evalResult.overallScore}/10
@@ -432,7 +479,7 @@ export default function ReportViewer({
                           </span>
                         </div>
                         <div className="space-y-1.5">
-                          {evalResult.checks.map((c, ci) => (
+                          {evalResult.checks.map((c: any, ci: number) => (
                             <div key={ci} className="flex items-start gap-2 text-xs">
                               <span className={`shrink-0 font-bold ${c.pass ? "text-emerald-400" : "text-red-400"}`}>
                                 {c.pass ? "v" : "x"}
@@ -443,7 +490,7 @@ export default function ReportViewer({
                               </div>
                             </div>
                           ))}
-                          {evalResult.missingConcepts.length > 0 && (
+                          {evalResult.missingConcepts?.length > 0 && (
                             <div className="flex items-start gap-2 text-xs">
                               <AlertTriangle className="w-3 h-3 text-amber-400 mt-0.5 shrink-0" />
                               <span className="text-white/40">Missing: {evalResult.missingConcepts.join(", ")}</span>
@@ -453,7 +500,7 @@ export default function ReportViewer({
                         <p className="text-xs text-white/30 italic border-t border-white/5 pt-2">{evalResult.integrityNote}</p>
                       </>
                     ) : (
-                      <p className="text-xs text-white/30 italic">No evaluation recorded for this diagram.</p>
+                      <p className="text-xs text-white/30 italic">No evaluation recorded.</p>
                     )}
                   </div>
                 </div>

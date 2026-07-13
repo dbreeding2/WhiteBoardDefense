@@ -66,7 +66,7 @@ interface DiagramBuilderProps {
   questionIndex: number;
   focusConcept: string;       // from DefenseQuestion.focusConcept
   questionText: string;       // from DefenseQuestion.questionText
-  onCaptureSnapshot: (b64: string) => void;
+  onCaptureSnapshot: (b64: string, evaluation?: any) => void;
   role: "student" | "instructor" | "both";
   isVisible: boolean;         // true when the diagram tab is active
 }
@@ -814,11 +814,11 @@ export default function DiagramBuilder({
     setSelectedEdge((prev) => prev ? { ...prev, dir } : null);
   };
 
-  const captureSnapshot = () => {
+  const captureSnapshot = (evalResult?: any) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const b64 = canvas.toDataURL("image/png").split(",")[1];
-    onCaptureSnapshot(b64);
+    onCaptureSnapshot(b64, evalResult);
   };
 
   const clearCanvas = () => {
@@ -893,6 +893,7 @@ Respond ONLY with valid JSON, no markdown fences:
           else data.overallScore = 0;
         }
         setEvaluation(data);
+        captureSnapshot(data); // auto-save snapshot with evaluation attached
       } else {
         // Fallback local evaluation
         setEvaluation({

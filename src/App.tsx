@@ -51,6 +51,7 @@ export default function App() {
   const [allQuestionDocs, setAllQuestionDocs] = useState<string[]>(Array(8).fill(""));
   const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<'draw' | 'text' | 'diagram'>('diagram');
   const [snapshots, setSnapshots] = useState<string[]>(Array(8).fill(""));
+  const [diagramEvaluations, setDiagramEvaluations] = useState<(any | null)[]>(Array(8).fill(null));
 
   // Refs so WebSocket closures always see current values (avoids stale closure bug)
   const questionsRef = useRef<DefenseQuestion[]>([]);
@@ -490,12 +491,19 @@ export default function App() {
     }).catch((err) => console.warn("Failed to publish session questions:", err));
   };
 
-  const handleSaveSnapshot = (idx: number, b64: string) => {
+  const handleSaveSnapshot = (idx: number, b64: string, evaluation?: any) => {
     setSnapshots((prev) => {
       const copy = [...prev];
       copy[idx] = b64;
       return copy;
     });
+    if (evaluation) {
+      setDiagramEvaluations((prev) => {
+        const copy = [...prev];
+        copy[idx] = evaluation;
+        return copy;
+      });
+    }
     // Send latest snapshot thumbnail to dashboard
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({
@@ -516,6 +524,7 @@ export default function App() {
       setQuestions([]);
       setAllQuestionStrokes(Array(8).fill([]));
       setSnapshots(Array(8).fill(""));
+      setDiagramEvaluations(Array(8).fill(null));
       setChatHistory([]);
       setAssessment(null);
       setSessionId(generateSessionId());
@@ -659,6 +668,7 @@ export default function App() {
               setQuestions([]);
               setAllQuestionStrokes(Array(8).fill([]));
               setSnapshots(Array(8).fill(""));
+              setDiagramEvaluations(Array(8).fill(null));
               setChatHistory([]);
               setAssessment(null);
               setSessionId(newId);
@@ -763,6 +773,7 @@ export default function App() {
             chatHistory={chatHistory}
             assessment={assessment}
             snapshots={snapshots}
+            diagramEvaluations={diagramEvaluations}
             onResetSession={handleReset}
             activityType={activityType}
           />

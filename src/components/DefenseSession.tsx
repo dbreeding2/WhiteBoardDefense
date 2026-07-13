@@ -18,7 +18,7 @@ interface DefenseSessionProps {
   onDocChange: (idx: number, doc: string) => void;
   activeTab: "draw" | "text" | "diagram";
   onActiveTabChange: (tab: "draw" | "text" | "diagram") => void;
-  onSaveSnapshot: (idx: number, b64: string) => void;
+  onSaveSnapshot: (idx: number, b64: string, evaluation?: any) => void;
   snapshots: string[];
   wsRef: React.MutableRefObject<WebSocket | null>;
   onProgressToChat: () => void;
@@ -367,7 +367,7 @@ export default function DefenseSession({
                 role={role}
                 strokes={currentQuestionStrokes}
                 onStrokesChange={(updated) => onStrokesChange(currentQuestionIndex, updated)}
-                onCaptureSnapshot={(b64) => onSaveSnapshot(currentQuestionIndex, b64)}
+                onCaptureSnapshot={(b64, evaluation) => onSaveSnapshot(currentQuestionIndex, b64, evaluation)}
                 wsRef={wsRef}
               />
             )}
@@ -378,7 +378,7 @@ export default function DefenseSession({
                 role={role}
                 value={allDocs[currentQuestionIndex] || ""}
                 onChange={(newValue) => onDocChange(currentQuestionIndex, newValue)}
-                onCaptureSnapshot={(b64) => onSaveSnapshot(currentQuestionIndex, b64)}
+                onCaptureSnapshot={(b64, evaluation) => onSaveSnapshot(currentQuestionIndex, b64, evaluation)}
                 wsRef={wsRef}
               />
             )}
@@ -387,7 +387,7 @@ export default function DefenseSession({
                 questionIndex={currentQuestionIndex}
                 focusConcept={currentQuestion.focusConcept}
                 questionText={currentQuestion.questionText}
-                onCaptureSnapshot={(b64) => onSaveSnapshot(currentQuestionIndex, b64)}
+                onCaptureSnapshot={(b64, evaluation) => onSaveSnapshot(currentQuestionIndex, b64, evaluation)}
                 role={role}
                 isVisible={activeTab === "diagram"}
               />

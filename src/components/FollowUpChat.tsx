@@ -190,6 +190,24 @@ export default function FollowUpChat({
       return;
     }
 
+    // AI-assisted response pattern detector
+    const aiPatternFlags: string[] = [];
+    const txt = inputText.trim();
+    if (txt.length > 1200) aiPatternFlags.push("unusually long answer");
+    if ((txt.match(/\+[-=]+\+|[-]{3,}|={3,}|\|.*\|/g) || []).length >= 2) aiPatternFlags.push("ASCII diagram detected");
+    if ((txt.match(/^\d+\.\s/gm) || []).length >= 3) aiPatternFlags.push("numbered list formatting");
+    if ((txt.match(/\([A-Z]{2,6}\)/g) || []).length >= 4) aiPatternFlags.push("excessive inline acronym definitions");
+    if (/great question|as mentioned in my paper|according to my research|as stated in/i.test(txt)) aiPatternFlags.push("AI courtesy phrases");
+    if ((txt.match(/\n\s*[-*]\s/g) || []).length >= 4) aiPatternFlags.push("bullet list formatting");
+
+    if (aiPatternFlags.length >= 2) {
+      const flagList = aiPatternFlags.join(", ");
+      const proceed = window.confirm(
+        `Warning: This response shows patterns consistent with AI-generated content (${flagList}).\n\nAre you sure you want to submit this answer? The system will flag it for integrity review.`
+      );
+      if (!proceed) return;
+    }
+
     // Paste-back detection: check if student submitted the AI's last question verbatim
     const lastAiMsg = chatHistory.filter(m => m.sender === "ai").slice(-1)[0];
     if (lastAiMsg && inputText.trim().length > 20) {

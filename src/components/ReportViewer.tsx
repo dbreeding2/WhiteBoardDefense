@@ -3,6 +3,14 @@ import { AIPreparedAssessment, ChatMessage } from "../types";
 import { jsPDF } from "jspdf";
 import { Award, AlertTriangle, FileText, CheckCircle2, XCircle, RefreshCw, Layers, ShieldCheck } from "lucide-react";
 
+interface DiagramEvalResult {
+  overallScore: number;
+  checks: { label: string; pass: boolean; note: string }[];
+  missingConcepts: string[];
+  integritySignal: "low" | "medium" | "high";
+  integrityNote: string;
+}
+
 interface ReportViewerProps {
   studentName: string;
   paperTitle: string;
@@ -10,6 +18,7 @@ interface ReportViewerProps {
   chatHistory: ChatMessage[];
   assessment: AIPreparedAssessment;
   snapshots: string[]; // base64
+  diagramEvaluations?: (DiagramEvalResult | null)[]; // per-question diagram eval
   onResetSession: () => void;
   activityType?: string;
 }
@@ -21,6 +30,7 @@ export default function ReportViewer({
   chatHistory,
   assessment,
   snapshots,
+  diagramEvaluations = [],
   onResetSession,
   activityType,
 }: ReportViewerProps) {
@@ -197,19 +207,54 @@ export default function ReportViewer({
 
     currentY += 10;
 
-    const validSnapshots = snapshots.filter(Boolean);
-    validSnapshots.forEach((snap, idx) => {
+    const validSnapshots = snapshots.map((s, i) => ({ snap: s, idx: i })).filter(s => s.snap);
+    validSnapshots.forEach(({ snap, idx }) => {
+      const evalResult = diagramEvaluations?.[idx];
       try {
-        // Embed canvas png base64 directly
         doc.addImage(snap, "PNG", 15, currentY, 80, 55);
         doc.setFont("Helvetica", "bold");
-        doc.text(`Snapshot #${idx + 1}: Conceptual Sketch`, 105, currentY + 15);
-        doc.setFont("Helvetica", "normal");
-        doc.text("Vector strokes recorded in active session", 105, currentY + 22);
+        doc.setFontSize(11);
+        doc.text(`Snapshot #${idx + 1}: Conceptual Sketch`, 105, currentY + 8);
 
-        currentY += 65;
+        if (evalResult) {
+          doc.setFont("Helvetica", "normal");
+          doc.setFontSize(9);
+          doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+          doc.text(`Diagram Score: ${evalResult.overallScore}/10`, 105, currentY + 15);
 
-        // Add page break if required
+          doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+          let checkY = currentY + 21;
+          evalResult.checks.forEach((c) => {
+            const symbol = c.pass ? "v" : "x";
+            const wrapped = doc.splitTextToSize(`${symbol} ${c.label}: ${c.note}`, 80);
+            doc.setFont("Helvetica", c.pass ? "normal" : "italic");
+            doc.setTextColor(c.pass ? 16 : accentColor[0], c.pass ? 124 : accentColor[1], c.pass ? 16 : accentColor[2]);
+            doc.text(wrapped, 105, checkY);
+            checkY += wrapped.length * 4 + 1;
+          });
+
+          if (evalResult.missingConcepts.length > 0) {
+            doc.setFont("Helvetica", "italic");
+            doc.setTextColor(grayTextColor[0], grayTextColor[1], grayTextColor[2]);
+            const mc = doc.splitTextToSize(`Missing: ${evalResult.missingConcepts.join(", ")}`, 80);
+            doc.text(mc, 105, checkY);
+            checkY += mc.length * 4 + 1;
+          }
+
+          doc.setFont("Helvetica", "italic");
+          doc.setTextColor(grayTextColor[0], grayTextColor[1], grayTextColor[2]);
+          const note = doc.splitTextToSize(evalResult.integrityNote, 80);
+          doc.text(note, 105, checkY);
+        } else {
+          doc.setFont("Helvetica", "normal");
+          doc.setFontSize(9);
+          doc.setTextColor(grayTextColor[0], grayTextColor[1], grayTextColor[2]);
+          doc.text("No diagram evaluation recorded", 105, currentY + 15);
+        }
+
+        doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+        currentY += 70;
+
         if (currentY > 240 && idx < validSnapshots.length - 1) {
           doc.addPage();
           currentY = 20;
@@ -342,6 +387,81 @@ export default function ReportViewer({
           </div>
         </div>
       </div>
+
+      {/* Diagram Evaluations */}
+      {snapshots.some(Boolean) && (
+        <div className="bg-[#111] rounded-2xl border border-white/5 p-6 space-y-4 shadow-sm">
+          <h3 className="text-xs font-bold uppercase tracking-widest text-white/40 flex items-center gap-1.5 font-mono">
+            <Layers className="w-4 h-4 text-indigo-400" /> Whiteboard Diagram Evaluations
+          </h3>
+          <div className="space-y-6">
+            {snapshots.map((snap, idx) => {
+              if (!snap) return null;
+              const evalResult = diagramEvaluations?.[idx];
+              return (
+                <div key={idx} className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-white/5 pt-4">
+                  {/* Snapshot thumbnail */}
+                  <div>
+                    <p className="text-xs font-mono text-white/30 mb-2">Snapshot #{idx + 1}</p>
+                    <img
+                      src={snap.startsWith("data:") ? snap : `data:image/png;base64,${snap}`}
+                      alt={`Whiteboard diagram for question ${idx + 1}`}
+                      className="w-full rounded-lg border border-white/10"
+                    />
+                  </div>
+                  {/* Evaluation results */}
+                  <div className="space-y-3">
+                    {evalResult ? (
+                      <>
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2.5 py-1 rounded-full text-xs font-bold font-mono ${
+                            evalResult.overallScore >= 8 ? "bg-emerald-950/40 text-emerald-400 border border-emerald-900/50"
+                            : evalResult.overallScore >= 6 ? "bg-amber-950/40 text-amber-400 border border-amber-900/50"
+                            : "bg-red-950/40 text-red-400 border border-red-900/50"
+                          }`}>
+                            {evalResult.overallScore}/10
+                          </span>
+                          <span className={`px-2.5 py-1 rounded-full text-xs font-bold font-mono ${
+                            evalResult.integritySignal === "low" ? "bg-emerald-950/40 text-emerald-400 border border-emerald-900/50"
+                            : evalResult.integritySignal === "medium" ? "bg-amber-950/40 text-amber-400 border border-amber-900/50"
+                            : "bg-red-950/40 text-red-400 border border-red-900/50"
+                          }`}>
+                            {evalResult.integritySignal === "low" ? "Low concern"
+                              : evalResult.integritySignal === "medium" ? "Review needed"
+                              : "Flagged"}
+                          </span>
+                        </div>
+                        <div className="space-y-1.5">
+                          {evalResult.checks.map((c, ci) => (
+                            <div key={ci} className="flex items-start gap-2 text-xs">
+                              <span className={`shrink-0 font-bold ${c.pass ? "text-emerald-400" : "text-red-400"}`}>
+                                {c.pass ? "v" : "x"}
+                              </span>
+                              <div>
+                                <span className="font-bold text-white/70">{c.label}</span>
+                                <span className="text-white/40 ml-1">{c.note}</span>
+                              </div>
+                            </div>
+                          ))}
+                          {evalResult.missingConcepts.length > 0 && (
+                            <div className="flex items-start gap-2 text-xs">
+                              <AlertTriangle className="w-3 h-3 text-amber-400 mt-0.5 shrink-0" />
+                              <span className="text-white/40">Missing: {evalResult.missingConcepts.join(", ")}</span>
+                            </div>
+                          )}
+                        </div>
+                        <p className="text-xs text-white/30 italic border-t border-white/5 pt-2">{evalResult.integrityNote}</p>
+                      </>
+                    ) : (
+                      <p className="text-xs text-white/30 italic">No evaluation recorded for this diagram.</p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Buttons to PDF export and resets */}
       <div className="bg-[#131313] rounded-2xl p-6 border border-white/5 flex flex-col md:flex-row items-center justify-between gap-4 shadow-inner">

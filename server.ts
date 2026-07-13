@@ -39,12 +39,13 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 async function openaiChat(
   messages: { role: string; content: any }[],
   maxRetries = 3,
-  forceJson = false
+  forceJson = false,
+  temperature = 0.3
 ): Promise<string> {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       console.log(`[OpenAI] Attempt ${attempt}/${maxRetries}...`);
-      const body: any = { model: OPENAI_MODEL, messages, max_tokens: 8192 };
+      const body: any = { model: OPENAI_MODEL, messages, max_tokens: 8192, temperature };
       if (forceJson) body.response_format = { type: "json_object" };
       const res = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
@@ -69,12 +70,13 @@ async function openaiChat(
 async function claudeChat(
   messages: { role: string; content: any }[],
   systemPrompt: string | undefined,
-  maxRetries = 3
+  maxRetries = 3,
+  temperature = 0.3
 ): Promise<string> {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       console.log(`[Claude] Attempt ${attempt}/${maxRetries}...`);
-      const body: any = { model: CLAUDE_MODEL, max_tokens: 4096, messages };
+      const body: any = { model: CLAUDE_MODEL, max_tokens: 4096, messages, temperature };
       if (systemPrompt) body.system = systemPrompt;
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
@@ -104,7 +106,8 @@ async function geminiChat(
   userPrompt: string,
   systemPrompt: string | undefined,
   imageParts: { mimeType: string; data: string }[] = [],
-  maxRetries = 3
+  maxRetries = 3,
+  temperature = 0.3
 ): Promise<string> {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -122,7 +125,7 @@ async function geminiChat(
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [{ parts }],
-          generationConfig: { responseMimeType: "application/json" },
+          generationConfig: { responseMimeType: "application/json", temperature },
         }),
       });
       if (!res.ok) throw new Error(`Gemini HTTP ${res.status}: ${await res.text()}`);
@@ -140,23 +143,27 @@ async function geminiChat(
 }
 
 // --- Unified helpers ----------------------------------------------------------
-async function generateText(userPrompt: string, systemPrompt?: string, forceJson = false): Promise<string> {
+// temperature guide:
+//   0.2-0.3 = evaluation/scoring/chat (consistent, harder to fool)
+//   0.7     = question generation (varied questions per student)
+async function generateText(userPrompt: string, systemPrompt?: string, forceJson = false, temperature = 0.3): Promise<string> {
   if (AI_PROVIDER === "claude") {
-    return claudeChat([{ role: "user", content: userPrompt }], systemPrompt);
+    return claudeChat([{ role: "user", content: userPrompt }], systemPrompt, 3, temperature);
   } else if (AI_PROVIDER === "gemini") {
-    return geminiChat(userPrompt, systemPrompt);
+    return geminiChat(userPrompt, systemPrompt, [], 3, temperature);
   } else {
     const messages: { role: string; content: any }[] = [];
     if (systemPrompt) messages.push({ role: "system", content: systemPrompt });
     messages.push({ role: "user", content: userPrompt });
-    return openaiChat(messages, 3, forceJson);
+    return openaiChat(messages, 3, forceJson, temperature);
   }
 }
 
 async function generateMultimodal(
   textPrompt: string,
   base64Images: string[],
-  systemPrompt?: string
+  systemPrompt?: string,
+  temperature = 0.3
 ): Promise<string> {
   if (AI_PROVIDER === "claude") {
     const contentParts: any[] = [];
@@ -166,13 +173,13 @@ async function generateMultimodal(
       contentParts.push({ type: "image", source: { type: "base64", media_type: mimeType, data: base64Data } });
     }
     contentParts.push({ type: "text", text: textPrompt });
-    return claudeChat([{ role: "user", content: contentParts }], systemPrompt);
+    return claudeChat([{ role: "user", content: contentParts }], systemPrompt, 3, temperature);
   } else if (AI_PROVIDER === "gemini") {
     const imageParts = base64Images.filter(Boolean).map((img) => ({
       mimeType: img.includes("data:") ? img.split(":")[1].split(";")[0] : "image/png",
       data: img.includes("base64,") ? img.split("base64,")[1] : img,
     }));
-    return geminiChat(textPrompt, systemPrompt, imageParts);
+    return geminiChat(textPrompt, systemPrompt, imageParts, 3, temperature);
   } else {
     const contentParts: any[] = [{ type: "text", text: textPrompt }];
     for (const img of base64Images.filter(Boolean)) {
@@ -182,7 +189,7 @@ async function generateMultimodal(
     const messages: { role: string; content: any }[] = [];
     if (systemPrompt) messages.push({ role: "system", content: systemPrompt });
     messages.push({ role: "user", content: contentParts });
-    return openaiChat(messages, 3, false);
+    return openaiChat(messages, 3, false, temperature);
   }
 }
 
@@ -468,7 +475,7 @@ Return a JSON object with a "questions" array containing EXACTLY 8 objects. Each
 `;
 
   try {
-    const raw = await generateText(prompt, undefined, true);
+    const raw = await generateText(prompt, undefined, true, 0.7);
     const parsed = parseJsonResponse<any>(raw);
     const questions = Array.isArray(parsed)
       ? parsed
@@ -624,7 +631,7 @@ Return a JSON object for the replacement question:
 `;
 
   try {
-    const raw = await generateText(prompt, undefined, true);
+    const raw = await generateText(prompt, undefined, true, 0.7);
     const question = parseJsonResponse<any>(raw);
     return res.json({ question });
   } catch (err: any) {
@@ -692,6 +699,21 @@ CURRENT POSITION:
 - Question #${effectiveQIdx + 1} of ${totalQuestions}: "${currentQ?.questionText || "N/A"}"
 - Student has answered this question ${roundOnCurrentQ - 1} time(s) so far.
 - Next question will be Q${nextQIdx + 1}: "${nextQ?.questionText || "done"}"
+
+AI-ASSISTED RESPONSE DETECTION -- treat these as HIGH integrity flags:
+- Response contains ASCII diagrams (lines of +---, |, /\, arrows made of dashes)
+- Response is longer than 300 words for a single oral answer
+- Response contains numbered bullet lists with sub-bullets (AI formatting signature)
+- Response cites specific paper section numbers or page numbers verbatim
+- Response uses phrases like "Great question", "As mentioned in my paper", "According to my research"
+- Response contains perfectly formatted markdown tables
+- Multiple technical acronyms defined inline in parentheses throughout
+- Response covers ALL aspects of a question with zero hesitation or "I'm not sure"
+
+If you detect 2 or more of these signals in a single student response:
+1. Do NOT accept the answer and move on
+2. Respond with: "Your answer appears unusually structured. Let me ask you to explain that more naturally -- [ask a specific detail from their answer that an AI would not know how to elaborate on spontaneously]"
+3. Set suspicionLevel to "High" in the final assessment
 
 IMPORTANT CONTEXT:
 - The whiteboard/diagram phase is COMPLETE. All diagrams have already been drawn and captured as snapshots.

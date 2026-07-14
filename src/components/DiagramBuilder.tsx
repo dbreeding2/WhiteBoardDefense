@@ -68,7 +68,10 @@ interface DiagramBuilderProps {
   questionText: string;       // from DefenseQuestion.questionText
   onCaptureSnapshot: (b64: string, evaluation?: any) => void;
   role: "student" | "instructor" | "both";
-  isVisible: boolean;         // true when the diagram tab is active
+  isVisible: boolean;
+  savedState?: any | null;
+  onStateChange?: (state: any) => void;
+  diagramDomain?: string;
 }
 
 // ??? Constants ????????????????????????????????????????????????????????????????
@@ -80,6 +83,7 @@ const HANDLE_R = 7;
 const HANDLE_HIT = 14;
 
 const DEFS: Record<string, NodeDef> = {
+  // ── Networking ──────────────────────────────────────────────────────────────
   router:   { icon: "ti-router",           label: "Router",      color: "#818CF8", fill: "#1e1b4b", stroke: "#4338ca" },
   firewall: { icon: "ti-shield",           label: "Firewall",    color: "#f87171", fill: "#450a0a", stroke: "#991b1b" },
   switch:   { icon: "ti-switch",           label: "Switch",      color: "#a78bfa", fill: "#2e1065", stroke: "#6d28d9" },
@@ -94,6 +98,71 @@ const DEFS: Record<string, NodeDef> = {
   shield:   { icon: "ti-shield-check",     label: "Safeguard",   color: "#fb923c", fill: "#431407", stroke: "#c2410c" },
   lock:     { icon: "ti-lock",             label: "Access Ctrl", color: "#a78bfa", fill: "#1e1b4b", stroke: "#7c3aed" },
   dmz:      { icon: "ti-hexagon",          label: "DMZ",         color: "#f472b6", fill: "#2d0a1f", stroke: "#9d174d" },
+  // ── Software / Code ─────────────────────────────────────────────────────────
+  func:     { icon: "ti-code",             label: "Function",    color: "#818CF8", fill: "#1e1b4b", stroke: "#4338ca" },
+  input:    { icon: "ti-arrow-bar-to-down",label: "Input",       color: "#34d399", fill: "#022c22", stroke: "#065f46" },
+  output:   { icon: "ti-arrow-bar-up",     label: "Output",      color: "#60a5fa", fill: "#0c1a2e", stroke: "#1e40af" },
+  process:  { icon: "ti-cpu",             label: "Process",     color: "#9ca3af", fill: "#111827", stroke: "#374151" },
+  decision: { icon: "ti-diamond",          label: "Decision",    color: "#fbbf24", fill: "#1c0a00", stroke: "#92400e" },
+  loop:     { icon: "ti-refresh",          label: "Loop",        color: "#c4b5fd", fill: "#1e1b4b", stroke: "#5b21b6" },
+  database: { icon: "ti-database",         label: "Database",    color: "#f87171", fill: "#450a0a", stroke: "#991b1b" },
+  api:      { icon: "ti-api",              label: "API Call",    color: "#fb923c", fill: "#431407", stroke: "#c2410c" },
+  file:     { icon: "ti-file",             label: "File/IO",     color: "#6ee7b7", fill: "#022c22", stroke: "#059669" },
+  class:    { icon: "ti-package",          label: "Class",       color: "#f472b6", fill: "#2d0a1f", stroke: "#9d174d" },
+  module:   { icon: "ti-puzzle",           label: "Module",      color: "#a78bfa", fill: "#2e1065", stroke: "#6d28d9" },
+  start:    { icon: "ti-player-play",      label: "Start/End",   color: "#34d399", fill: "#022c22", stroke: "#065f46" },
+  // ── Business / Workflow ──────────────────────────────────────────────────────
+  biz_start:    { icon: "ti-player-play",    label: "Trigger",     color: "#34d399", fill: "#022c22", stroke: "#065f46" },
+  biz_task:     { icon: "ti-checkbox",       label: "Task",        color: "#818CF8", fill: "#1e1b4b", stroke: "#4338ca" },
+  biz_decision: { icon: "ti-diamond",        label: "Decision",    color: "#fbbf24", fill: "#1c0a00", stroke: "#92400e" },
+  biz_approval: { icon: "ti-circle-check",   label: "Approval",    color: "#fb923c", fill: "#431407", stroke: "#c2410c" },
+  biz_notify:   { icon: "ti-bell",           label: "Notify",      color: "#60a5fa", fill: "#0c1a2e", stroke: "#1e40af" },
+  biz_data:     { icon: "ti-database",       label: "Data Store",  color: "#9ca3af", fill: "#111827", stroke: "#374151" },
+  biz_role:     { icon: "ti-user",           label: "Role/Dept",   color: "#c4b5fd", fill: "#1e1b4b", stroke: "#5b21b6" },
+  biz_end:      { icon: "ti-flag",           label: "Outcome",     color: "#f472b6", fill: "#2d0a1f", stroke: "#9d174d" },
+  // ── UX / Design ─────────────────────────────────────────────────────────────
+  ux_screen:    { icon: "ti-device-desktop", label: "Screen",      color: "#818CF8", fill: "#1e1b4b", stroke: "#4338ca" },
+  ux_action:    { icon: "ti-cursor-text",    label: "User Action", color: "#34d399", fill: "#022c22", stroke: "#065f46" },
+  ux_decision:  { icon: "ti-diamond",        label: "Decision",    color: "#fbbf24", fill: "#1c0a00", stroke: "#92400e" },
+  ux_input:     { icon: "ti-forms",          label: "Form/Input",  color: "#60a5fa", fill: "#0c1a2e", stroke: "#1e40af" },
+  ux_feedback:  { icon: "ti-message",        label: "Feedback",    color: "#fb923c", fill: "#431407", stroke: "#c2410c" },
+  ux_nav:       { icon: "ti-arrow-right",    label: "Navigate",    color: "#c4b5fd", fill: "#1e1b4b", stroke: "#5b21b6" },
+  ux_modal:     { icon: "ti-layout-navbar",  label: "Modal/Pop-up",color: "#f472b6", fill: "#2d0a1f", stroke: "#9d174d" },
+  ux_end:       { icon: "ti-flag",           label: "End State",   color: "#6ee7b7", fill: "#022c22", stroke: "#059669" },
+  model:    { icon: "ti-brain",            label: "Model",       color: "#818CF8", fill: "#1e1b4b", stroke: "#4338ca" },
+  dataset:  { icon: "ti-table",            label: "Dataset",     color: "#60a5fa", fill: "#0c1a2e", stroke: "#1e40af" },
+  pipeline: { icon: "ti-git-branch",       label: "Pipeline",    color: "#fbbf24", fill: "#1c0a00", stroke: "#92400e" },
+  layer:    { icon: "ti-stack",            label: "Layer",       color: "#c4b5fd", fill: "#1e1b4b", stroke: "#5b21b6" },
+  // ── UML ──────────────────────────────────────────────────────────────────────
+  uml_class:    { icon: "ti-package",        label: "Class",       color: "#818CF8", fill: "#1e1b4b", stroke: "#4338ca" },
+  uml_interface:{ icon: "ti-brackets",       label: "Interface",   color: "#60a5fa", fill: "#0c1a2e", stroke: "#1e40af" },
+  uml_abstract: { icon: "ti-layer-difference",label: "Abstract",   color: "#c4b5fd", fill: "#1e1b4b", stroke: "#5b21b6" },
+  uml_inherit:  { icon: "ti-arrow-up",       label: "Inherits",    color: "#34d399", fill: "#022c22", stroke: "#065f46" },
+  uml_compose:  { icon: "ti-diamond",        label: "Composition", color: "#fbbf24", fill: "#1c0a00", stroke: "#92400e" },
+  uml_aggregate:{ icon: "ti-diamond",        label: "Aggregation", color: "#fb923c", fill: "#431407", stroke: "#c2410c" },
+  uml_depend:   { icon: "ti-arrow-right",    label: "Dependency",  color: "#9ca3af", fill: "#111827", stroke: "#374151" },
+  uml_method:   { icon: "ti-code",           label: "Method",      color: "#f472b6", fill: "#2d0a1f", stroke: "#9d174d" },
+  uml_attr:     { icon: "ti-tag",            label: "Attribute",   color: "#6ee7b7", fill: "#022c22", stroke: "#059669" },
+  uml_note:     { icon: "ti-notes",          label: "Note",        color: "#9ca3af", fill: "#111827", stroke: "#374151" },
+  // ── State / State Transition ─────────────────────────────────────────────────
+  st_initial:   { icon: "ti-player-play",    label: "Initial",     color: "#34d399", fill: "#022c22", stroke: "#065f46" },
+  st_state:     { icon: "ti-square",         label: "State",       color: "#818CF8", fill: "#1e1b4b", stroke: "#4338ca" },
+  st_final:     { icon: "ti-flag",           label: "Final",       color: "#f87171", fill: "#450a0a", stroke: "#991b1b" },
+  st_transition:{ icon: "ti-arrow-right",    label: "Transition",  color: "#60a5fa", fill: "#0c1a2e", stroke: "#1e40af" },
+  st_event:     { icon: "ti-bolt",           label: "Event/Guard", color: "#fbbf24", fill: "#1c0a00", stroke: "#92400e" },
+  st_action:    { icon: "ti-player-record",  label: "Action",      color: "#c4b5fd", fill: "#1e1b4b", stroke: "#5b21b6" },
+  st_choice:    { icon: "ti-diamond",        label: "Choice",      color: "#fb923c", fill: "#431407", stroke: "#c2410c" },
+  st_fork:      { icon: "ti-git-branch",     label: "Fork/Join",   color: "#f472b6", fill: "#2d0a1f", stroke: "#9d174d" },
+  db_entity:   { icon: "ti-table",          label: "Entity",      color: "#818CF8", fill: "#1e1b4b", stroke: "#4338ca" },
+  db_attr:     { icon: "ti-tag",            label: "Attribute",   color: "#9ca3af", fill: "#111827", stroke: "#374151" },
+  db_key:      { icon: "ti-key",            label: "Primary Key", color: "#fbbf24", fill: "#1c0a00", stroke: "#92400e" },
+  db_fk:       { icon: "ti-link",           label: "Foreign Key", color: "#fb923c", fill: "#431407", stroke: "#c2410c" },
+  db_table:    { icon: "ti-layout-rows",    label: "Table",       color: "#60a5fa", fill: "#0c1a2e", stroke: "#1e40af" },
+  db_view:     { icon: "ti-eye",            label: "View",        color: "#34d399", fill: "#022c22", stroke: "#065f46" },
+  db_proc:     { icon: "ti-code",           label: "Procedure",   color: "#c4b5fd", fill: "#1e1b4b", stroke: "#5b21b6" },
+  db_index:    { icon: "ti-list-search",    label: "Index",       color: "#f472b6", fill: "#2d0a1f", stroke: "#9d174d" },
+  db_rel_one:  { icon: "ti-arrow-right",    label: "One-to-One",  color: "#6ee7b7", fill: "#022c22", stroke: "#059669" },
+  db_rel_many: { icon: "ti-arrows-split",   label: "One-to-Many", color: "#f87171", fill: "#450a0a", stroke: "#991b1b" },
 };
 
 const ROLE_COLORS: Record<string, string> = {
@@ -105,14 +174,14 @@ const ROLE_COLORS: Record<string, string> = {
   encrypted:   "#06b6d4",
 };
 
-// Map focusConcept keywords -> component palette presets
 const SCENARIO_PALETTES: Array<{
   keywords: string[];
   components: string[];
   hint: string;
 }> = [
+  // ── Networking ──────────────────────────────────────────────────────────────
   {
-    keywords: ["vlan", "segmentation", "segment", "clinic", "network"],
+    keywords: ["vlan", "segmentation", "segment", "network", "subnet"],
     components: ["firewall", "switch", "vlan", "vlan", "vlan", "endpoint", "wifi"],
     hint: "Show at least three VLANs, place the firewall at the enforcement boundary, label each VLAN.",
   },
@@ -131,19 +200,139 @@ const SCENARIO_PALETTES: Array<{
     components: ["noc", "siem", "firewall", "switch", "router", "server"],
     hint: "Connect log sources to the SIEM, then show the NOC analyst connection and alert path.",
   },
+  {
+    keywords: ["acl", "access control", "firewall rule", "packet filter"],
+    components: ["router", "firewall", "lock", "server", "endpoint", "dmz"],
+    hint: "Show ACL placement at the routing boundary and which traffic is permitted vs denied.",
+  },
+  // ── Software / Code ─────────────────────────────────────────────────────────
+  {
+    keywords: ["function", "flow", "algorithm", "python", "java", "code", "program", "script", "method"],
+    components: ["start", "input", "process", "decision", "loop", "output", "func", "file"],
+    hint: "Sketch a flowchart: Start -> Input -> Process -> Decision/Loop -> Output. Label each step.",
+  },
+  {
+    keywords: ["class", "object", "oop", "inheritance", "polymorphism", "encapsulation"],
+    components: ["class", "class", "module", "func", "database", "api"],
+    hint: "Show class relationships, inheritance arrows, and key methods or attributes.",
+  },
+  {
+    keywords: ["api", "rest", "http", "endpoint", "request", "response", "web service"],
+    components: ["input", "api", "process", "database", "output", "cloud", "server"],
+    hint: "Show the request/response flow: Client -> API endpoint -> Processing -> Database -> Response.",
+  },
+  {
+    keywords: ["database", "sql", "query", "schema", "table", "crud", "data model", "erd", "entity", "relational"],
+    components: ["db_entity", "db_entity", "db_table", "db_key", "db_fk", "db_rel_one", "db_rel_many", "db_attr"],
+    hint: "Draw entities as boxes, add primary keys, connect with relationship lines (one-to-one or one-to-many).",
+  },
+  {
+    keywords: ["pipeline", "etl", "data flow", "transform", "extract", "load"],
+    components: ["input", "pipeline", "process", "process", "database", "output", "file"],
+    hint: "Show each pipeline stage: Extract -> Transform -> Load, with data sources and destinations.",
+  },
+  // ── Business / Workflow ──────────────────────────────────────────────────────
+  {
+    keywords: ["workflow", "business process", "bpmn", "approval", "operations", "procurement", "supply chain", "erp"],
+    components: ["biz_start", "biz_task", "biz_decision", "biz_approval", "biz_notify", "biz_end", "biz_data", "biz_role"],
+    hint: "Map the business process: trigger -> tasks -> decision gates -> approvals -> outcome.",
+  },
+  {
+    keywords: ["stakeholder", "swimlane", "department", "handoff", "escalation", "sla"],
+    components: ["biz_role", "biz_role", "biz_task", "biz_decision", "biz_approval", "biz_notify", "biz_end"],
+    hint: "Use swimlanes to show which department/role owns each step, and where handoffs occur.",
+  },
+  {
+    keywords: ["customer journey", "touchpoint", "experience", "crm", "sales", "marketing funnel"],
+    components: ["biz_start", "biz_task", "biz_decision", "biz_notify", "biz_data", "biz_end", "biz_role"],
+    hint: "Show each customer touchpoint in sequence, decision points, and conversion or drop-off outcomes.",
+  },
+  // ── UML ──────────────────────────────────────────────────────────────────────
+  {
+    keywords: ["uml", "class diagram", "inheritance", "polymorphism", "encapsulation", "interface", "abstract"],
+    components: ["uml_class", "uml_class", "uml_interface", "uml_abstract", "uml_inherit", "uml_compose", "uml_aggregate", "uml_depend"],
+    hint: "Draw classes with attributes and methods, connect with inheritance (open arrow), composition (filled diamond), or dependency (dashed arrow).",
+  },
+  {
+    keywords: ["sequence diagram", "use case", "actor", "message", "lifeline"],
+    components: ["uml_class", "uml_interface", "uml_method", "uml_depend", "uml_inherit", "uml_note"],
+    hint: "Show actors/objects as boxes, interactions as arrows, and add notes for constraints.",
+  },
+  // ── State / State Transition ─────────────────────────────────────────────────
+  {
+    keywords: ["state machine", "state diagram", "statechart", "fsm", "finite state", "state transition"],
+    components: ["st_initial", "st_state", "st_state", "st_state", "st_event", "st_action", "st_choice", "st_final"],
+    hint: "Start with Initial, connect States with labeled Transitions (event [guard] / action), end with Final.",
+  },
+  {
+    keywords: ["lifecycle", "status", "pending", "processing", "active", "idle", "complete", "workflow state"],
+    components: ["st_initial", "st_state", "st_state", "st_event", "st_transition", "st_choice", "st_fork", "st_final"],
+    hint: "Map each lifecycle status as a State, label each arrow with the event that triggers the transition.",
+  },
+  // ── UX / Design ─────────────────────────────────────────────────────────────
+  {
+    keywords: ["ux", "ui", "user interface", "wireframe", "prototype", "usability", "design", "interaction"],
+    components: ["ux_screen", "ux_action", "ux_decision", "ux_input", "ux_feedback", "ux_nav", "ux_modal", "ux_end"],
+    hint: "Sketch the user flow: screen states -> user actions -> system responses -> navigation paths.",
+  },
+  {
+    keywords: ["user flow", "navigation", "screen", "page", "modal", "form", "button", "click"],
+    components: ["ux_screen", "ux_nav", "ux_action", "ux_input", "ux_modal", "ux_feedback", "ux_decision", "ux_end"],
+    hint: "Map screen-to-screen navigation: show what happens on each user action and where they go next.",
+  },
+  {
+    keywords: ["heuristic", "accessibility", "wcag", "persona", "user research", "card sort"],
+    components: ["ux_screen", "ux_action", "ux_feedback", "ux_decision", "ux_input", "ux_end"],
+    hint: "Diagram the evaluation framework or research process and how findings map to design decisions.",
+  },
+  {
+    keywords: ["machine learning", "neural", "training", "model", "ai", "deep learning", "classification"],
+    components: ["dataset", "pipeline", "model", "layer", "layer", "output", "process"],
+    hint: "Show data ingestion, preprocessing, model layers, training loop, and output/evaluation.",
+  },
+  {
+    keywords: ["regression", "classification", "clustering", "feature", "predict"],
+    components: ["dataset", "process", "model", "decision", "output", "pipeline"],
+    hint: "Show feature engineering, model training, prediction pipeline, and evaluation metrics.",
+  },
 ];
+
+const NETWORKING_COMPONENTS = ["router", "firewall", "switch", "server", "cloud", "endpoint", "vlan", "isp"];
+const SOFTWARE_COMPONENTS = ["start", "input", "process", "decision", "loop", "output", "func", "file", "database"];
+const AI_COMPONENTS = ["dataset", "pipeline", "model", "layer", "process", "output", "input"];
 
 const ALL_COMPONENTS = Object.keys(DEFS);
 
 function detectScenario(concept: string): { components: string[]; hint: string } {
-  const lower = concept.toLowerCase();
+  const lower = (concept || "").toLowerCase();
+
+  // Check specific scenarios first
   for (const s of SCENARIO_PALETTES) {
     if (s.keywords.some((k) => lower.includes(k))) {
       return { components: s.components, hint: s.hint };
     }
   }
+
+  // Detect broad domain from concept
+  const isSoftware = /python|java|code|script|program|function|class|algorithm|loop|variable|method|debug/.test(lower);
+  const isAI = /machine learning|neural|model|dataset|training|ai|deep learning|predict/.test(lower);
+  const isData = /erd|entity.relation|data model|schema|relational|database design|normalization/.test(lower);
+  const isBusiness = /workflow|business|process|approval|stakeholder|crm|erp|supply|operations|procurement/.test(lower);
+  const isUX = /ux|ui|user interface|wireframe|screen|navigation|usability|design|persona|heuristic/.test(lower);
+  const isUML = /uml|class diagram|inheritance|polymorphism|interface|abstract class|composition|aggregation/.test(lower);
+  const isState = /state machine|state diagram|statechart|fsm|finite state|state transition|lifecycle/.test(lower);
+
+  if (isAI) return { components: AI_COMPONENTS, hint: "Diagram the ML pipeline: data ingestion, preprocessing, model training, and output evaluation." };
+  if (isUML) return { components: ["uml_class", "uml_class", "uml_interface", "uml_abstract", "uml_inherit", "uml_compose", "uml_aggregate", "uml_depend"], hint: "Draw classes, connect with inheritance, composition, or dependency arrows." };
+  if (isState) return { components: ["st_initial", "st_state", "st_state", "st_event", "st_action", "st_choice", "st_fork", "st_final"], hint: "Start with Initial, connect States with labeled Transitions, end with Final." };
+  if (isData) return { components: ["db_entity", "db_entity", "db_table", "db_key", "db_fk", "db_rel_one", "db_rel_many", "db_attr"], hint: "Draw entities, add primary/foreign keys, and connect with relationship lines." };
+  if (isBusiness) return { components: ["biz_start", "biz_role", "biz_task", "biz_decision", "biz_approval", "biz_notify", "biz_data", "biz_end"], hint: "Map the business process: trigger -> roles -> tasks -> decisions -> approvals -> outcome." };
+  if (isUX) return { components: ["ux_screen", "ux_action", "ux_decision", "ux_input", "ux_feedback", "ux_nav", "ux_modal", "ux_end"], hint: "Sketch the user flow: screens -> user actions -> system responses -> navigation paths." };
+  if (isSoftware) return { components: SOFTWARE_COMPONENTS, hint: "Sketch a flowchart: Start -> Input -> Process -> Decision/Loop -> Output." };
+
+  // Default to networking
   return {
-    components: ["router", "firewall", "switch", "server", "cloud", "endpoint"],
+    components: NETWORKING_COMPONENTS,
     hint: "Label each component clearly and connect them to show traffic flow.",
   };
 }
@@ -194,7 +383,50 @@ export default function DiagramBuilder({
   onCaptureSnapshot,
   role,
   isVisible,
+  savedState,
+  onStateChange,
+  diagramDomain = "auto",
 }: DiagramBuilderProps) {
+
+  const getScenario = (concept: string) => {
+    if (diagramDomain === "networking") return {
+      components: ["router", "firewall", "switch", "server", "cloud", "endpoint", "vlan", "isp"],
+      hint: "Label each component clearly and connect them to show traffic flow.",
+    };
+    if (diagramDomain === "software") return {
+      components: ["start", "input", "process", "decision", "loop", "output", "func", "file", "database"],
+      hint: "Sketch a flowchart: Start -> Input -> Process -> Decision/Loop -> Output.",
+    };
+    if (diagramDomain === "ai") return {
+      components: ["dataset", "pipeline", "model", "layer", "process", "output", "input"],
+      hint: "Diagram the ML pipeline: data ingestion, preprocessing, model training, and output evaluation.",
+    };
+    if (diagramDomain === "business") return {
+      components: ["biz_start", "biz_role", "biz_task", "biz_decision", "biz_approval", "biz_notify", "biz_data", "biz_end"],
+      hint: "Map the business process: trigger -> roles -> tasks -> decisions -> approvals -> outcome.",
+    };
+    if (diagramDomain === "uml") return {
+      components: ["uml_class", "uml_class", "uml_interface", "uml_abstract", "uml_inherit", "uml_compose", "uml_aggregate", "uml_depend", "uml_method", "uml_note"],
+      hint: "Draw classes with attributes and methods, connect with inheritance, composition, or dependency arrows.",
+    };
+    if (diagramDomain === "state") return {
+      components: ["st_initial", "st_state", "st_state", "st_state", "st_event", "st_action", "st_choice", "st_fork", "st_transition", "st_final"],
+      hint: "Start with Initial, connect States with labeled Transitions (event [guard] / action), end with Final.",
+    };
+    if (diagramDomain === "data") return {
+      components: ["db_entity", "db_entity", "db_table", "db_key", "db_fk", "db_rel_one", "db_rel_many", "db_attr", "db_view", "db_proc"],
+      hint: "Draw entities, add primary/foreign keys, and connect with relationship lines.",
+    };
+    if (diagramDomain === "business") return {
+      components: ["biz_start", "biz_role", "biz_task", "biz_decision", "biz_approval", "biz_notify", "biz_data", "biz_end"],
+      hint: "Map the business process: trigger -> roles -> tasks -> decisions -> approvals -> outcome.",
+    };
+    if (diagramDomain === "ux") return {
+      components: ["ux_screen", "ux_action", "ux_decision", "ux_input", "ux_feedback", "ux_nav", "ux_modal", "ux_end"],
+      hint: "Sketch the user flow: screens -> user actions -> system responses -> navigation paths.",
+    };
+    return detectScenario(concept);
+  };
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [nodes, setNodes] = useState<DiagramNode[]>([]);
   const [edges, setEdges] = useState<DiagramEdge[]>([]);
@@ -211,7 +443,7 @@ export default function DiagramBuilder({
   const [evaluating, setEvaluating] = useState(false);
   const [evaluation, setEvaluation] = useState<DiagramEvaluation | null>(null);
   const [scenario, setScenario] = useState<{ components: string[]; hint: string }>(
-    detectScenario(focusConcept)
+    getScenario(focusConcept)
   );
 
   // Mutable refs for canvas interaction (avoids stale closure in event listeners)
@@ -240,12 +472,32 @@ export default function DiagramBuilder({
   useEffect(() => { selectedNodeRef.current = selectedNode; }, [selectedNode]);
   useEffect(() => { hoverNodeIdRef.current = hoverNodeId; }, [hoverNodeId]);
 
-  // Re-detect scenario and clear canvas when question changes
+  // Persist diagram state to parent whenever it changes
   useEffect(() => {
-    setScenario(detectScenario(focusConcept));
-    setNodes([]); setEdges([]); setGroups([]); setTextLabels([]);
+    if (onStateChange && (nodes.length > 0 || edges.length > 0 || groups.length > 0 || textLabels.length > 0)) {
+      onStateChange({ nodes, edges, groups, textLabels, nextId });
+    }
+  }, [nodes, edges, groups, textLabels]);
+
+  // Re-detect scenario and restore/clear canvas when question changes
+  useEffect(() => {
+    setScenario(getScenario(focusConcept));
+    setEvaluation(null);
+    setEditingLabelId(null);
     setSelectedNode(null); setSelectedEdge(null); setSelectedGroup(null); setSelectedLabel(null);
-    setEditingLabelId(null); setEvaluation(null);
+
+    if (savedState) {
+      // Restore previously saved diagram for this question
+      setNodes(savedState.nodes || []);
+      setEdges(savedState.edges || []);
+      setGroups(savedState.groups || []);
+      setTextLabels(savedState.textLabels || []);
+      setNextId(savedState.nextId || 1);
+    } else {
+      // Fresh question — clear canvas
+      setNodes([]); setEdges([]); setGroups([]); setTextLabels([]);
+      setNextId(1);
+    }
   }, [questionIndex, focusConcept]);
 
   // ?? Helpers ??????????????????????????????????????????????????????????????????
@@ -1221,7 +1473,7 @@ Respond ONLY with valid JSON, no markdown fences:
           type="button"
           onClick={() => {
             if (window.confirm("Reset the diagram and reload the scenario palette?")) {
-              clearCanvas(); setScenario(detectScenario(focusConcept));
+              clearCanvas(); setScenario(getScenario(focusConcept));
             }
           }}
           aria-label="Reset diagram and reload scenario"

@@ -108,10 +108,31 @@ export default function InstructorDashboard({ wsRef, onNewSession }: InstructorD
 
   const copyLink = (sessionId: string) => {
     const url = `${serverBaseUrl}/?sessionId=${sessionId}&role=student`;
-    navigator.clipboard.writeText(url).then(() => {
-      setCopiedId(sessionId);
-      setTimeout(() => setCopiedId(null), 2000);
-    });
+    const doCopy = () => {
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(url).then(() => {
+          setCopiedId(sessionId);
+          setTimeout(() => setCopiedId(null), 2000);
+        });
+      } else {
+        const el = document.createElement("textarea");
+        el.value = url;
+        el.style.position = "fixed";
+        el.style.opacity = "0";
+        document.body.appendChild(el);
+        el.focus();
+        el.select();
+        try {
+          document.execCommand("copy");
+          setCopiedId(sessionId);
+          setTimeout(() => setCopiedId(null), 2000);
+        } catch {
+          alert("Could not copy automatically. Please copy manually:\n\n" + url);
+        }
+        document.body.removeChild(el);
+      }
+    };
+    doCopy();
   };
 
   const openSession = (sessionId: string) => {

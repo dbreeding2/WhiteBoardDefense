@@ -25,6 +25,7 @@ interface DefenseSessionProps {
   wsRef: React.MutableRefObject<WebSocket | null>;
   onProgressToChat: () => void;
   onBackToDashboard: () => void;
+  diagramDomain?: string;
 }
 
 // Keywords in focusConcept that should auto-suggest the diagram tab
@@ -50,8 +51,8 @@ export default function DefenseSession({
   onStrokesChange,
   allDocs,
   onDocChange,
-  allDiagrams,
-  onDiagramChange,
+  allDiagrams = [],
+  onDiagramChange = () => {},
   activeTab,
   onActiveTabChange,
   onSaveSnapshot,
@@ -59,6 +60,7 @@ export default function DefenseSession({
   wsRef,
   onProgressToChat,
   onBackToDashboard,
+  diagramDomain = "auto",
 }: DefenseSessionProps) {
   const [showQR, setShowQR] = useState(false);
   const [syncToast, setSyncToast] = useState(false);
@@ -168,16 +170,14 @@ export default function DefenseSession({
               <Monitor className="w-3.5 h-3.5 text-indigo-400" aria-hidden="true" /> Dashboard
             </button>
           )}
-          {role !== "student" && (
-            <button
-              type="button"
-              onClick={() => setShowQR(!showQR)}
-              aria-label="Share student board link"
-              className="flex items-center gap-1.5 bg-white/5 border border-white/15 text-white hover:bg-white/10 p-2.5 px-4 rounded-xl text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <Share2 className="w-3.5 h-3.5 text-indigo-400" aria-hidden="true" /> Share Student Board
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => setShowQR(!showQR)}
+            aria-label="Share student board link"
+            className="flex items-center gap-1.5 bg-white/5 border border-white/15 text-white hover:bg-white/10 p-2.5 px-4 rounded-xl text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            <Share2 className="w-3.5 h-3.5 text-indigo-400" aria-hidden="true" /> Share Student Board
+          </button>
           <button
             type="button"
             onClick={onProgressToChat}
@@ -424,6 +424,7 @@ export default function DefenseSession({
                 isVisible={activeTab === "diagram"}
                 savedState={allDiagrams[currentQuestionIndex]}
                 onStateChange={(diagram) => onDiagramChange(currentQuestionIndex, diagram)}
+                diagramDomain={diagramDomain}
               />
             )}
           </div>

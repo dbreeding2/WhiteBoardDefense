@@ -49,6 +49,8 @@ export default function App() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [allQuestionStrokes, setAllQuestionStrokes] = useState<DrawingStroke[][]>(Array(8).fill([]));
   const [allQuestionDocs, setAllQuestionDocs] = useState<string[]>(Array(8).fill(""));
+  const [allQuestionDiagrams, setAllQuestionDiagrams] = useState<(any | null)[]>(Array(8).fill(null));
+  const [diagramDomain, setDiagramDomain] = useState<string>("auto"); // auto | networking | software | ai | business | ux
   const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<'draw' | 'text' | 'diagram'>('diagram');
   const [snapshots, setSnapshots] = useState<string[]>(Array(8).fill(""));
   const [diagramEvaluations, setDiagramEvaluations] = useState<(any | null)[]>(Array(8).fill(null));
@@ -522,7 +524,7 @@ export default function App() {
       setCourseName("");
       setPastedText("");
       setQuestions([]);
-      setAllQuestionStrokes(Array(8).fill([]));
+      setAllQuestionStrokes(Array(8).fill([])); setAllQuestionDiagrams(Array(8).fill(null));
       setSnapshots(Array(8).fill(""));
       setDiagramEvaluations(Array(8).fill(null));
       setChatHistory([]);
@@ -647,6 +649,20 @@ export default function App() {
               )}
             </React.Fragment>
           ))}
+          {/* Always-visible dashboard escape hatch during active sessions */}
+          {['session', 'followup', 'report'].includes(currentStage) && role !== 'student' && (
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm("Return to dashboard? The current session will remain active.")) {
+                  setCurrentStage('dashboard');
+                }
+              }}
+              className="ml-auto text-xs font-mono text-white/20 hover:text-indigo-400 border border-white/5 hover:border-indigo-500/30 px-3 py-1.5 rounded-lg transition focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              Dashboard
+            </button>
+          )}
         </nav>
       </header>
 
@@ -666,7 +682,7 @@ export default function App() {
               setCourseName("");
               setPastedText("");
               setQuestions([]);
-              setAllQuestionStrokes(Array(8).fill([]));
+              setAllQuestionStrokes(Array(8).fill([])); setAllQuestionDiagrams(Array(8).fill(null));
               setSnapshots(Array(8).fill(""));
               setDiagramEvaluations(Array(8).fill(null));
               setChatHistory([]);
@@ -691,19 +707,43 @@ export default function App() {
         )}
 
         {currentStage === 'review' && (
-          <ReviewQuestions
-            questions={questions}
-            paperTitle={paperTitle}
-            pastedText={pastedText}
-            studentName={studentName}
-            courseName={courseName}
-            onQuestionsConfirmed={handleReviewConfirmed}
-            onRegenerateSingle={handleRegenerateQuestion}
-            isRegenerating={isRegenerating}
-            activityType={activityType}
-            metadataAnalysis={metadataAnalysis}
-            isAnalyzingMetadata={isAnalyzingMetadata}
-          />
+          <>
+            <ReviewQuestions
+              questions={questions}
+              paperTitle={paperTitle}
+              pastedText={pastedText}
+              studentName={studentName}
+              courseName={courseName}
+              onQuestionsConfirmed={handleReviewConfirmed}
+              onRegenerateSingle={handleRegenerateQuestion}
+              isRegenerating={isRegenerating}
+              activityType={activityType}
+              metadataAnalysis={metadataAnalysis}
+              isAnalyzingMetadata={isAnalyzingMetadata}
+            />
+            {/* Diagram domain override */}
+            <div className="bg-[#111] border border-white/5 rounded-2xl p-5 flex flex-col md:flex-row items-start md:items-center gap-4">
+              <div>
+                <p className="text-sm font-bold text-white/70">Diagram Board Mode</p>
+                <p className="text-xs text-white/30 mt-0.5">Override the auto-detected component palette for the whiteboard diagram board.</p>
+              </div>
+              <select
+                value={diagramDomain}
+                onChange={(e) => setDiagramDomain(e.target.value)}
+                className="ml-auto bg-black/40 border border-white/10 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 font-mono"
+              >
+                <option value="auto">Auto-detect (from question concepts)</option>
+                <option value="networking">Networking / Cybersecurity</option>
+                <option value="software">Software / Code / Flowchart</option>
+                <option value="uml">UML Class / Object Diagrams</option>
+                <option value="state">State / State Transition Diagrams</option>
+                <option value="data">Data Models / ERD / Database</option>
+                <option value="ai">AI / Machine Learning</option>
+                <option value="business">Business / Workflow / Operations</option>
+                <option value="ux">UX / UI / Design</option>
+              </select>
+            </div>
+          </>
         )}
 
         {currentStage === 'session' && (
@@ -729,12 +769,20 @@ export default function App() {
                 return copy;
               });
             }}
+            allDiagrams={allQuestionDiagrams}
+            onDiagramChange={(idx, diagram) => {
+              setAllQuestionDiagrams((prev) => {
+                const copy = [...prev];
+                copy[idx] = diagram;
+                return copy;
+              });
+            }}
             activeTab={activeWorkspaceTab}
             onActiveTabChange={setActiveWorkspaceTab}
             onSaveSnapshot={handleSaveSnapshot}
             snapshots={snapshots}
             wsRef={wsRef}
-            onProgressToChat={() => setCurrentStage('followup')}
+            diagramDomain={diagramDomain}
             onBackToDashboard={() => setCurrentStage('dashboard')}
           />
         )}

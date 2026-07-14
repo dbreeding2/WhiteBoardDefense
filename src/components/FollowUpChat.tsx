@@ -335,8 +335,9 @@ export default function FollowUpChat({
           courseName,
           questions,
           pastedText,
-          conclude: true, // Triggers final assessment calculation!
-          activityType
+          conclude: true,
+          activityType,
+          currentQuestionIndex,
         })
       });
 
@@ -397,17 +398,17 @@ export default function FollowUpChat({
 
   const triggerFallbackAssessment = () => {
     const fallback: AIPreparedAssessment = {
-      overallScore: 78,
-      suspicionLevel: "Medium",
-      suspicionReasoning: "Candidate struggled with deep theoretical limits, but shows baseline ownership.",
+      overallScore: 80,
+      suspicionLevel: "Low",
+      suspicionReasoning: "Assessment could not be auto-generated. Please use the scoring form to enter results manually.",
       categories: [
-        { name: "Technical Mastery", score: 8, feedback: "Demonstrated moderate technical mastery of basic workflows." },
-        { name: "Whiteboard Synthesis", score: 7, feedback: "Formulated accurate drawings but lacks mathematical clarity." },
-        { name: "Integrity Verification", score: 8, feedback: "Explanations were responsive and consistent." }
+        { name: "Technical Subject Mastery", score: 8, feedback: "Please review transcript and enter score manually." },
+        { name: "Visual Whiteboard Synthesis", score: 8, feedback: "Please review snapshots and enter score manually." },
+        { name: "Integrity & Originality Verification", score: 8, feedback: "Please review responses and enter score manually." }
       ],
-      keyFindings: ["Properly diagrammed neural networks configurations."],
-      gapsIdentified: ["Inability to elaborate on experimental benchmarks."],
-      recommendedGrade: "B+"
+      keyFindings: ["Manual review required -- auto-assessment was unavailable."],
+      gapsIdentified: ["Please review the transcript and enter gaps manually."],
+      recommendedGrade: "B"
     };
     onDefenseCompleted(fallback);
     notifyPeerStateChange("assessment_finalized", { assessment: fallback });
@@ -498,6 +499,30 @@ export default function FollowUpChat({
           <span className="text-[9px] bg-white/5 text-white/40 border border-white/10 px-2 py-0.5 rounded-full font-mono font-bold">
             {studentTurnCount} / {MAX_TURNS} responses
           </span>
+          {role !== "student" && (
+            <button
+              type="button"
+              onClick={() => {
+                const url = `${window.location.origin}/?sessionId=${sessionId}&role=student`;
+                if (navigator.clipboard && window.isSecureContext) {
+                  navigator.clipboard.writeText(url).then(() => alert("Student link copied!"));
+                } else {
+                  const el = document.createElement("textarea");
+                  el.value = url;
+                  el.style.position = "fixed";
+                  el.style.opacity = "0";
+                  document.body.appendChild(el);
+                  el.focus(); el.select();
+                  try { document.execCommand("copy"); alert("Student link copied!"); }
+                  catch { alert("Copy manually:\n\n" + url); }
+                  document.body.removeChild(el);
+                }
+              }}
+              className="text-[9px] bg-white/5 text-white/40 border border-white/10 hover:text-indigo-400 hover:border-indigo-500/30 px-2 py-0.5 rounded-full font-mono font-bold transition"
+            >
+              Copy Student Link
+            </button>
+          )}
         </div>
 
         {/* Message body transcript scrolls */}

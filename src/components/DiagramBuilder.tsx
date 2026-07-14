@@ -196,7 +196,7 @@ const SCENARIO_PALETTES: Array<{
     hint: "Map all three HIPAA safeguard categories (administrative, physical, technical) to components.",
   },
   {
-    keywords: ["noc", "siem", "log", "monitor", "alert", "incident"],
+    keywords: ["noc", "siem", "monitor", "alert", "incident response", "log management"],
     components: ["noc", "siem", "firewall", "switch", "router", "server"],
     hint: "Connect log sources to the SIEM, then show the NOC analyst connection and alert path.",
   },
@@ -306,7 +306,14 @@ const ALL_COMPONENTS = Object.keys(DEFS);
 function detectScenario(concept: string): { components: string[]; hint: string } {
   const lower = (concept || "").toLowerCase();
 
-  // Check specific scenarios first
+  // Check software/code FIRST to prevent networking keywords like "log" in "logic" from matching
+  const isSoftwareFirst = /python|javascript|typescript|def |function |class |method|algorithm|regex|parse|string|script|flowchart|text.*process|process.*text/.test(lower);
+  if (isSoftwareFirst) return {
+    components: ["start", "input", "process", "decision", "loop", "output", "func", "file", "database"],
+    hint: "Sketch a flowchart: Start -> Input -> Process -> Decision/Loop -> Output. Label each step clearly.",
+  };
+
+  // Check specific scenarios
   for (const s of SCENARIO_PALETTES) {
     if (s.keywords.some((k) => lower.includes(k))) {
       return { components: s.components, hint: s.hint };
@@ -1175,7 +1182,9 @@ Respond ONLY with valid JSON, no markdown fences:
 
   // ?? Render UI ?????????????????????????????????????????????????????????????????
 
-  const paletteTypes = [...new Set([...scenario.components, ...ALL_COMPONENTS])];
+  // Show scenario components first, then add a few universal extras from the same domain
+  // Don't show ALL_COMPONENTS -- that's 60+ items and overwhelms the palette
+  const paletteTypes = [...new Set(scenario.components)];
 
   return (
     <div className="space-y-3">

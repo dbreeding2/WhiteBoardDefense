@@ -425,6 +425,8 @@ export default function DefenseSession({
                 savedState={allDiagrams[currentQuestionIndex]}
                 onStateChange={(diagram) => onDiagramChange(currentQuestionIndex, diagram)}
                 diagramDomain={diagramDomain}
+                wsRef={wsRef}
+                sessionId={sessionId}
               />
             )}
           </div>

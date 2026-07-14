@@ -455,6 +455,7 @@ export default function App() {
   // Stage 2 confirmed -> Go to live whiteboard
   const handleReviewConfirmed = (confirmedQuestions: DefenseQuestion[]) => {
     setQuestions(confirmedQuestions);
+    setRole('both'); // ensure instructor controls are visible in session
     setCurrentStage('session');
     broadcastStage('session');
 
@@ -658,7 +659,7 @@ export default function App() {
                   setCurrentStage('dashboard');
                 }
               }}
-              className="ml-auto text-xs font-mono text-white/20 hover:text-indigo-400 border border-white/5 hover:border-indigo-500/30 px-3 py-1.5 rounded-lg transition focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="ml-auto text-sm font-mono text-indigo-400 hover:text-white border border-indigo-500/40 hover:border-indigo-400 hover:bg-indigo-500/10 px-3 py-1.5 rounded-lg transition focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               Dashboard
             </button>
@@ -783,6 +784,10 @@ export default function App() {
             snapshots={snapshots}
             wsRef={wsRef}
             diagramDomain={diagramDomain}
+            onProgressToChat={() => {
+              setCurrentStage('followup');
+              broadcastStage('followup');
+            }}
             onBackToDashboard={() => setCurrentStage('dashboard')}
           />
         )}

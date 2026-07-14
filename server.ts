@@ -505,53 +505,123 @@ app.post("/api/defense/analyze-metadata", async (req, res) => {
   const charCount = trimmed ? trimmed.length : 0;
 
   const createFallbackAnalysis = () => {
-    const hasIntro = /introduction|intro/i.test(pastedText);
-    const hasMeth = /methodology|method|model|implementation|algorithm/i.test(pastedText);
-    const hasAbstract = /abstract|summary/i.test(pastedText);
-    const hasRefs = /references|bibliography|citations|\[\d+\]/i.test(pastedText);
-    const passiveWords = (pastedText.match(/\b(is|was|were|been|are|be)\b\s+\w+ed\b/gi) || []).length;
     const wordSplit = pastedText.split(/\s+/).filter(Boolean);
+    const passiveWords = (pastedText.match(/\b(is|was|were|been|are|be)\b\s+\w+ed\b/gi) || []).length;
     const estimatedPassiveVoice = Math.min(45, Math.max(10, Math.round((passiveWords / (wordSplit.length || 1)) * 300)));
     const candidates = (Array.from(new Set(pastedText.match(/\b[A-Z][a-zA-Z]{3,}\b/g) || [])) as string[])
-      .filter(w => !["The","This","That","Abstract","Introduction","Methodology","Conclusion","Figure","Table"].includes(w))
+      .filter(w => !["The","This","That","Abstract","Introduction","Methodology","Conclusion","Figure","Table","Slide"].includes(w))
       .slice(0, 5);
-    while (candidates.length < 4) candidates.push("Scholastic Frame","Analytical Metric","Experimental Bound","Conceptual Limit");
+    while (candidates.length < 4) candidates.push("Core Concept","Technical Term","Key Topic","Main Theme");
     const sentences = (pastedText.match(/[.!?]+/g) || []).length || 1;
     const wordsPerSentence = Math.round(wordCount / sentences);
     let readabilityScore = Math.max(20, Math.min(85, 120 - Math.round(wordsPerSentence * 1.5)));
     let readabilityLabel = "Graduate Research Standard";
-    if (readabilityScore > 75) readabilityLabel = "Highly Accessible Technical Plaintext";
+    if (readabilityScore > 75) readabilityLabel = "Highly Accessible";
     else if (readabilityScore > 55) readabilityLabel = "Standard Academic Prose";
-    else if (readabilityScore < 35) readabilityLabel = "Rigorously Complex Scholastic Thesis";
+    else if (readabilityScore < 35) readabilityLabel = "Rigorously Complex";
+
+    // Activity-type-specific compliance checks
+    let standardsCompliance: any;
+    const isPaper = !activityType || activityType === "paper" || activityType === "capstone";
+    const isPresentation = activityType === "presentation";
+    const isProject = activityType === "project";
+
+    if (isPresentation) {
+      const hasObjective = /objective|goal|purpose|overview/i.test(pastedText);
+      const hasVisuals = /figure|diagram|chart|table|image|slide|visual/i.test(pastedText);
+      const hasConclusion = /conclusion|summary|takeaway|next step/i.test(pastedText);
+      standardsCompliance = {
+        hasObjective, hasVisuals, hasConclusion,
+        formatCheckScore: Math.round(((hasObjective?1:0)+(hasVisuals?1:0)+(hasConclusion?1:0)+(wordCount>200?1:0))*25),
+        checks: [
+          { label: "Clear Objective / Overview", status: hasObjective ? "PRESENT" : "MISSING LABEL" },
+          { label: "Visual / Diagram Support", status: hasVisuals ? "PRESENT" : "MISSING" },
+          { label: "Conclusion / Takeaways", status: hasConclusion ? "PRESENT" : "THIN SECTION" },
+        ]
+      };
+    } else if (isProject) {
+      const hasRequirements = /requirement|specification|feature|user stor/i.test(pastedText);
+      const hasArchitecture = /architecture|design|component|module|system/i.test(pastedText);
+      const hasTestPlan = /test|validation|verification|qa|quality/i.test(pastedText);
+      standardsCompliance = {
+        hasRequirements, hasArchitecture, hasTestPlan,
+        formatCheckScore: Math.round(((hasRequirements?1:0)+(hasArchitecture?1:0)+(hasTestPlan?1:0)+(wordCount>400?1:0))*25),
+        checks: [
+          { label: "Requirements / Specifications", status: hasRequirements ? "PRESENT" : "MISSING" },
+          { label: "Architecture / Design", status: hasArchitecture ? "PRESENT" : "THIN SECTION" },
+          { label: "Testing / Validation Plan", status: hasTestPlan ? "PRESENT" : "MANUAL CHECK REQ." },
+        ]
+      };
+    } else {
+      // Default: paper/capstone
+      const hasIntro = /introduction|intro/i.test(pastedText);
+      const hasMeth = /methodology|method|model|implementation|algorithm/i.test(pastedText);
+      const hasAbstract = /abstract|summary/i.test(pastedText);
+      const hasRefs = /references|bibliography|citations|\[\d+\]/i.test(pastedText);
+      standardsCompliance = {
+        hasAbstract, hasMethodology: hasMeth, hasCitations: hasRefs,
+        formatCheckScore: Math.round(((hasAbstract?1:0)+(hasIntro?1:0)+(hasMeth?1:0)+(hasRefs?1:0))*25),
+        checks: [
+          { label: "Abstract / Intent Summary", status: hasAbstract ? "PRESENT" : "MISSING LABEL" },
+          { label: "Methodology & Constraints", status: hasMeth ? "PRESENT" : "THIN SECTION" },
+          { label: "Standard Citations Index", status: hasRefs ? "PRESENT" : "MANUAL CHECK REQ." },
+        ]
+      };
+    }
+
     return {
       academicComplexity: wordCount > 1500 ? "High" : wordCount > 600 ? "Medium" : "Low",
       readabilityScore, readabilityLabel,
       passiveVoicePercent: estimatedPassiveVoice,
       keyConcepts: candidates,
-      standardsCompliance: {
-        hasAbstract, hasMethodology: hasMeth, hasCitations: hasRefs,
-        formatCheckScore: Math.round(((hasAbstract?1:0)+(hasIntro?1:0)+(hasMeth?1:0)+(hasRefs?1:0))*25)
-      },
+      standardsCompliance,
       aiLikelihood: {
         score: Math.floor(Math.random() * 20) + 12,
         diagnosticExplanation: "Analyzed local lexicon syntax bounds. Highly structured style with dynamic transition points.",
         structuralEntropy: "Dynamic"
       },
-      conceptualWeaknesses: [
-        "Unstated secondary trade-offs concerning computational latency overheads during scale",
-        "Assumes perfect error convergence boundaries without demonstrating robustness boundary constraints",
-        "Lack of detailed external benchmark comparative criteria with contemporary peer frameworks"
-      ],
-      extractedReferences: [
-        "Feynman, R. (1982). Simulating Physics with Computers. Int. Journal of Theoretical Physics.",
-        "Shannon, C. E. (1948). A Mathematical Theory of Communication. Bell System Technical Journal.",
-        "Turing, A. M. (1950). Computing Machinery and Intelligence. Mind."
-      ]
+      conceptualWeaknesses: [],
+      extractedReferences: []
     };
   };
 
+  const compliancePromptSection = activityType === "presentation" ? `
+  "standardsCompliance": {
+    "hasObjective": boolean (does it have a clear objective/overview?),
+    "hasVisuals": boolean (does it reference diagrams, charts, or slides?),
+    "hasConclusion": boolean (does it have conclusions or takeaways?),
+    "formatCheckScore": integer 0-100,
+    "checks": [
+      { "label": "Clear Objective / Overview", "status": "PRESENT" | "MISSING LABEL" | "THIN SECTION" },
+      { "label": "Visual / Diagram Support", "status": "PRESENT" | "MISSING" | "MANUAL CHECK REQ." },
+      { "label": "Conclusion / Takeaways", "status": "PRESENT" | "MISSING LABEL" | "THIN SECTION" }
+    ]
+  }` : activityType === "project" ? `
+  "standardsCompliance": {
+    "hasRequirements": boolean,
+    "hasArchitecture": boolean,
+    "hasTestPlan": boolean,
+    "formatCheckScore": integer 0-100,
+    "checks": [
+      { "label": "Requirements / Specifications", "status": "PRESENT" | "MISSING" | "THIN SECTION" },
+      { "label": "Architecture / Design", "status": "PRESENT" | "MISSING" | "THIN SECTION" },
+      { "label": "Testing / Validation Plan", "status": "PRESENT" | "MISSING" | "MANUAL CHECK REQ." }
+    ]
+  }` : `
+  "standardsCompliance": {
+    "hasAbstract": boolean,
+    "hasMethodology": boolean,
+    "hasCitations": boolean,
+    "formatCheckScore": integer 0-100,
+    "checks": [
+      { "label": "Abstract / Intent Summary", "status": "PRESENT" | "MISSING LABEL" | "THIN SECTION" },
+      { "label": "Methodology & Constraints", "status": "PRESENT" | "MISSING" | "THIN SECTION" },
+      { "label": "Standard Citations Index", "status": "PRESENT" | "MISSING" | "MANUAL CHECK REQ." }
+    ]
+  }`;
+
   const prompt = `
-You are an expert peer reviewer and academic metadata analyst. Analyze the following submitted academic manuscript and produce a detailed structural, style, and integrity analysis.
+You are an expert academic reviewer. Analyze the following ${activityName} and produce a detailed structural, style, and integrity analysis appropriate for a ${activityName}.
 
 Submission Name: "${paperTitle}"
 Activity Type: "${activityName}"
@@ -567,20 +637,15 @@ Return a JSON object with these exact fields:
   "readabilityScore": integer 0-100,
   "readabilityLabel": string,
   "passiveVoicePercent": integer 0-100,
-  "keyConcepts": [4-6 precise academic terms from the actual text],
-  "standardsCompliance": {
-    "hasAbstract": boolean,
-    "hasMethodology": boolean,
-    "hasCitations": boolean,
-    "formatCheckScore": integer 0-100
-  },
+  "keyConcepts": [4-6 precise technical terms from the actual text],
+  ${compliancePromptSection},
   "aiLikelihood": {
     "score": integer 0-100,
     "diagnosticExplanation": "1-2 sentences",
     "structuralEntropy": "Uniform" | "Dynamic" | "Suspiciously Consistent"
   },
-  "conceptualWeaknesses": ["3-4 specific criticisms"],
-  "extractedReferences": ["3-5 reference strings from the actual text"]
+  "conceptualWeaknesses": ["3-4 specific criticisms relevant to a ${activityName}"],
+  "extractedReferences": [${activityType === "presentation" || activityType === "project" ? "0-3 citations/sources if present, empty array if none" : "3-5 reference strings from the actual text"}]
 }
 `;
 
@@ -758,20 +823,19 @@ CURRENT POSITION:
 - Student has answered this question ${roundOnCurrentQ - 1} time(s) so far.
 - Next question will be Q${nextQIdx + 1}: "${nextQ?.questionText || "done"}"
 
-AI-ASSISTED RESPONSE DETECTION -- treat these as HIGH integrity flags:
-- Response contains ASCII diagrams (lines of +---, |, /\, arrows made of dashes)
-- Response is longer than 300 words for a single oral answer
-- Response contains numbered bullet lists with sub-bullets (AI formatting signature)
-- Response cites specific paper section numbers or page numbers verbatim
-- Response uses phrases like "Great question", "As mentioned in my paper", "According to my research"
-- Response contains perfectly formatted markdown tables
-- Multiple technical acronyms defined inline in parentheses throughout
-- Response covers ALL aspects of a question with zero hesitation or "I'm not sure"
+AI-ASSISTED RESPONSE DETECTION -- be conservative. Being well-organized or thorough is NOT suspicious on its own; many genuine students explain clearly. Only flag when you see actual AI ARTIFACTS:
+- Response contains a literal ASCII box-drawing diagram (multiple lines of +---+, |...|, or similar box characters)
+- Response contains AI-assistant courtesy phrases directed at YOU the examiner, e.g. "Great question!", "I'd be happy to explain", "Let me break this down for you"
+- Response is near-verbatim identical in wording/structure to a previous answer in this transcript (recycled AI output)
+- Response explicitly references being generated by an AI tool or mentions "ChatGPT", "as an AI", etc.
 
-If you detect 2 or more of these signals in a single student response:
-1. Do NOT accept the answer and move on
-2. Respond with: "Your answer appears unusually structured. Let me ask you to explain that more naturally -- [ask a specific detail from their answer that an AI would not know how to elaborate on spontaneously]"
-3. Set suspicionLevel to "High" in the final assessment
+Do NOT flag a response merely for: being long, being well-organized, covering the topic thoroughly, using correct terminology, or answering confidently. These are marks of a well-prepared student, not evidence of AI use.
+
+If you detect a genuine AI ARTIFACT above:
+1. Respond with: "Your answer appears unusually structured. Let me ask you to explain that more naturally -- [ask a specific detail from their answer that an AI would not know how to elaborate on spontaneously]"
+2. Set suspicionLevel to "Medium" (not "High" unless multiple clear artifacts appear across several answers)
+
+If no artifacts are present, treat the answer normally regardless of length or organization quality.
 
 IMPORTANT CONTEXT:
 - The whiteboard/diagram phase is COMPLETE. All diagrams have already been drawn and captured as snapshots.
@@ -812,7 +876,8 @@ CRITICAL RULES FOR ASSESSMENT:
 - keyFindings and gapsIdentified MUST reference topics actually discussed in this transcript
 - NEVER mention topics not covered (no "neural networks", "experimental benchmarks", or anything not in the questions list above)
 - Base every finding on specific student responses visible in the transcript
-- If the student used AI-generated answers, set suspicionLevel to "High" and explain specifically what triggered it
+- suspicionLevel scaling: "Low" is the default for a student who answers consistently in their own words, even if some answers were briefly flagged as "unusually structured" during the session -- being asked to rephrase once or twice and doing so successfully is NORMAL and should NOT push suspicion above "Low". Only use "Medium" if 3+ answers showed genuine AI artifacts (ASCII diagrams, AI-assistant phrasing) that the student could not adequately explain in plain language when asked. Only use "High" if the student was unable to explain their own answers in follow-up, or repeated identical content across multiple questions.
+- Do not let a temporary "unusually structured" prompt from earlier in the transcript automatically raise suspicion if the student's subsequent explanation was clear and consistent with their other answers.
 ` : ""}`;
 
     const base64Images: string[] = [];

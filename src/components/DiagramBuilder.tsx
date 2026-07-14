@@ -72,6 +72,8 @@ interface DiagramBuilderProps {
   savedState?: any | null;
   onStateChange?: (state: any) => void;
   diagramDomain?: string;
+  wsRef?: React.MutableRefObject<WebSocket | null>;
+  sessionId?: string;
 }
 
 // ??? Constants ????????????????????????????????????????????????????????????????
@@ -182,7 +184,7 @@ const SCENARIO_PALETTES: Array<{
   // ── Networking ──────────────────────────────────────────────────────────────
   {
     keywords: ["vlan", "segmentation", "segment", "network", "subnet"],
-    components: ["firewall", "switch", "vlan", "vlan", "vlan", "endpoint", "wifi"],
+    components: ["firewall", "router", "switch", "vlan", "vlan", "vlan", "endpoint", "server", "wifi", "lock", "noc", "siem", "cloud", "isp"],
     hint: "Show at least three VLANs, place the firewall at the enforcement boundary, label each VLAN.",
   },
   {
@@ -297,7 +299,7 @@ const SCENARIO_PALETTES: Array<{
   },
 ];
 
-const NETWORKING_COMPONENTS = ["router", "firewall", "switch", "server", "cloud", "endpoint", "vlan", "isp"];
+const NETWORKING_COMPONENTS = ["router", "firewall", "switch", "server", "cloud", "endpoint", "vlan", "isp", "wifi", "lock", "noc", "siem", "dmz", "shield"];
 const SOFTWARE_COMPONENTS = ["start", "input", "process", "decision", "loop", "output", "func", "file", "database"];
 const AI_COMPONENTS = ["dataset", "pipeline", "model", "layer", "process", "output", "input"];
 
@@ -393,11 +395,13 @@ export default function DiagramBuilder({
   savedState,
   onStateChange,
   diagramDomain = "auto",
+  wsRef,
+  sessionId,
 }: DiagramBuilderProps) {
 
   const getScenario = (concept: string) => {
     if (diagramDomain === "networking") return {
-      components: ["router", "firewall", "switch", "server", "cloud", "endpoint", "vlan", "isp"],
+      components: ["router", "firewall", "switch", "server", "cloud", "endpoint", "vlan", "isp", "wifi", "lock", "noc", "siem", "dmz", "shield"],
       hint: "Label each component clearly and connect them to show traffic flow.",
     };
     if (diagramDomain === "software") return {
@@ -449,9 +453,10 @@ export default function DiagramBuilder({
   const [paletteOpen, setPaletteOpen] = useState(true);
   const [evaluating, setEvaluating] = useState(false);
   const [evaluation, setEvaluation] = useState<DiagramEvaluation | null>(null);
-  const [scenario, setScenario] = useState<{ components: string[]; hint: string }>(
-    getScenario(focusConcept)
-  );
+  const [scenario, setScenario] = useState<{ components: string[]; hint: string }>(() => {
+    const base = getScenario(focusConcept);
+    return { ...base, hint: questionText ? `Diagram task for this question: ${questionText.slice(0, 120)}${questionText.length > 120 ? "..." : ""}` : base.hint };
+  });
 
   // Mutable refs for canvas interaction (avoids stale closure in event listeners)
   const nodesRef = useRef(nodes);
@@ -486,9 +491,32 @@ export default function DiagramBuilder({
     }
   }, [nodes, edges, groups, textLabels]);
 
+  // Broadcast live thumbnail to instructor dashboard (throttled to every 3s)
+  const lastBroadcastRef = useRef<number>(0);
+  useEffect(() => {
+    if (!wsRef?.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+    if (!isVisible || nodes.length === 0) return;
+    const now = Date.now();
+    if (now - lastBroadcastRef.current < 3000) return;
+    lastBroadcastRef.current = now;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const thumbnail = canvas.toDataURL("image/png");
+    wsRef.current.send(JSON.stringify({
+      type: "snapshot_update",
+      sessionId,
+      role,
+      data: { thumbnail },
+    }));
+  }, [nodes, edges, groups, textLabels]);
+
   // Re-detect scenario and restore/clear canvas when question changes
   useEffect(() => {
-    setScenario(getScenario(focusConcept));
+    const base = getScenario(focusConcept);
+    setScenario({
+      ...base,
+      hint: questionText ? `${questionText.slice(0, 120)}${questionText.length > 120 ? "..." : ""}` : base.hint,
+    });
     setEvaluation(null);
     setEditingLabelId(null);
     setSelectedNode(null); setSelectedEdge(null); setSelectedGroup(null); setSelectedLabel(null);
@@ -1482,7 +1510,9 @@ Respond ONLY with valid JSON, no markdown fences:
           type="button"
           onClick={() => {
             if (window.confirm("Reset the diagram and reload the scenario palette?")) {
-              clearCanvas(); setScenario(getScenario(focusConcept));
+              clearCanvas();
+              const base = getScenario(focusConcept);
+              setScenario({ ...base, hint: questionText ? `${questionText.slice(0, 120)}${questionText.length > 120 ? "..." : ""}` : base.hint });
             }
           }}
           aria-label="Reset diagram and reload scenario"

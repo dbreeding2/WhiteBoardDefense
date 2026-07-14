@@ -278,13 +278,13 @@ export default function ReportViewer({
           if (writtenText) {
             const wrapped = doc.splitTextToSize(writtenText, 80);
             const preview = wrapped.slice(0, 8); // max 8 lines
-            doc.text(preview, 105, currentY + 15);
+            doc.text(preview, 105, currentY + 26);
             if (wrapped.length > 8) {
               doc.setFont("Helvetica", "italic");
-              doc.text("[truncated...]", 105, currentY + 15 + (preview.length * 4));
+              doc.text("[truncated...]", 105, currentY + 26 + (preview.length * 4));
             }
           } else {
-            doc.text("Written answer captured in snapshot.", 105, currentY + 15);
+            doc.text("Written answer captured in snapshot.", 105, currentY + 26);
           }
         }
 

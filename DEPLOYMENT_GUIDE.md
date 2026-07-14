@@ -1,169 +1,198 @@
-# WhiteBoardDefense — Ollama + IIS Deployment Guide
-## Windows Server 2025
+# WhiteBoardDefense -- Deployment Guide
+## Windows Server / Windows PC
 
 ---
 
-## What Changed From the Original
+## Overview
 
-| Original | Converted |
+WhiteBoardDefense is a React/TypeScript/Node.js academic oral defense platform.
+It runs as a Node.js backend on port 3456, managed by PM2, with IIS acting as a
+reverse proxy on port 80.
+
+| Component | Technology |
 |---|---|
-| `@google/genai` SDK | Native `fetch()` to Ollama REST API |
-| `GEMINI_API_KEY` env var | `OLLAMA_HOST` + `OLLAMA_MODEL` env vars |
-| Gemini model fallback chain | Single Ollama model with retry/backoff |
-| Structured `responseSchema` (Gemini-specific) | JSON-in-prompt + `parseJsonResponse()` helper |
-
-No frontend (React/TSX) files were changed — only `server.ts`, `package.json`, and `.env`.
+| Frontend | React + Vite + Tailwind CSS |
+| Backend | Node.js (Express + WebSocket) |
+| Process Manager | PM2 |
+| Reverse Proxy | IIS + ARR (Windows Server) or direct (PC) |
+| AI Providers | OpenAI (default), Anthropic Claude, Google Gemini |
+| Source Control | GitHub (dbreeding2/WhiteBoardDefense) |
 
 ---
 
 ## Prerequisites
 
-### 1 — Install Node.js on the server
-Download the LTS installer from https://nodejs.org and install.
+### 1 -- Install Node.js
+Download the LTS installer (v18 or higher) from https://nodejs.org and install.
 Verify in PowerShell:
-```
-node -v   # should print v20.x or higher
+```powershell
+node -v    # should print v18.x or higher
 npm -v
 ```
 
-### 2 — Install Ollama on the server
-Download from https://ollama.com/download/windows and run the installer.
-After installation, open a new PowerShell window and pull the model:
+### 2 -- Install PM2 and PM2 Windows Startup
+```powershell
+npm install -g pm2
+npm install -g pm2-windows-startup
 ```
-ollama pull gemma4:latest
-```
-Verify Ollama is running:
-```
-curl http://localhost:11434/api/tags
-```
-You should see a JSON list of models.
 
-> **Note:** Ollama runs as a background service on Windows after installation.
-> If it's not running, start it with `ollama serve` in a terminal.
-
-### 3 — Install IIS modules
-In Server Manager → Add Roles and Features, ensure these are installed:
+### 3 -- Install IIS modules (Windows Server only)
+In Server Manager, ensure these are installed:
 - Web Server (IIS)
-- **URL Rewrite** module (download from IIS.net if not present)
-- **Application Request Routing (ARR) 3.0** (download from Web Platform Installer)
+- **URL Rewrite** module -- download from https://www.iis.net/downloads/microsoft/url-rewrite
+- **Application Request Routing (ARR) 3.0** -- download from https://www.iis.net/downloads/microsoft/application-request-routing
 
-After installing ARR, enable the global proxy:
-1. Open IIS Manager
-2. Click the **server node** (top level)
-3. Double-click **Application Request Routing Cache**
-4. Click **Server Proxy Settings** in the right-hand Actions panel
-5. Check **Enable proxy** → click **Apply**
+After installing ARR, enable the global proxy in IIS Manager:
+1. Click the **server node** (top level)
+2. Double-click **Application Request Routing Cache**
+3. Click **Server Proxy Settings** in the Actions panel
+4. Check **Enable proxy** and click **Apply**
 
 ---
 
-## Project Setup
+## Installation
 
-### 1 — Copy files to server
-Place the project folder somewhere accessible, e.g.:
-```
-C:\inetpub\wwwroot\WhiteBoardDefense\
-```
-
-The folder must contain:
-```
-WhiteBoardDefense/
-├── server.ts          ← (replaced file from this package)
-├── package.json       ← (replaced file — @google/genai removed)
-├── .env               ← (new file — configure OLLAMA_HOST etc.)
-├── web.config         ← (new IIS config)
-├── tsconfig.json      ← (unchanged)
-├── vite.config.ts     ← (unchanged)
-├── index.html         ← (unchanged)
-├── src/               ← (unchanged)
-└── assets/            ← (unchanged)
-```
-
-### 2 — Configure .env
-Edit `C:\inetpub\wwwroot\WhiteBoardDefense\.env`:
-```
-OLLAMA_HOST=http://localhost:11434
-OLLAMA_MODEL=gemma4:latest
-PORT=3000
-NODE_ENV=production
-APP_URL=http://your-server-hostname-or-ip
-```
-
-If Ollama is on a **different machine** (e.g. a GPU workstation), change:
-```
-OLLAMA_HOST=http://192.168.1.50:11434
-```
-
-### 3 — Install dependencies and build
-Open PowerShell **as Administrator**, navigate to the project folder, and run:
+### 1 -- Clone the repository
 ```powershell
+git clone https://github.com/dbreeding2/WhiteBoardDefense C:\inetpub\wwwroot\WhiteBoardDefense
 cd C:\inetpub\wwwroot\WhiteBoardDefense
+```
+
+### 2 -- Install dependencies
+```powershell
 npm install
+```
+
+### 3 -- Create the .env file
+Create `C:\inetpub\wwwroot\WhiteBoardDefense\.env` with the following:
+```
+SERVER_IP=10.50.XXX.XXX (Or your appropriate IP address)
+PORT=3456
+AI_PROVIDER=openai
+```
+
+Set `SERVER_IP` to the actual LAN IP of this machine. Students will use this IP
+to access the app from their devices. If omitted, the server auto-detects the IP
+but may pick a virtual adapter (Hyper-V, VirtualBox) instead of the correct one.
+
+**AI Provider options** -- set `AI_PROVIDER` to one of:
+- `openai` (default) -- requires `OPENAI_API_KEY`
+- `claude` -- requires `CLAUDE_API_KEY`
+- `gemini` -- requires `GEMINI_API_KEY`
+
+Add the corresponding API key to `.env`:
+```
+OPENAI_API_KEY=sk-...
+```
+or
+```
+CLAUDE_API_KEY=sk-ant-...
+```
+or
+```
+GEMINI_API_KEY=AI...
+```
+
+**Optional model overrides** (defaults shown):
+```
+OPENAI_MODEL=gpt-4o-mini
+CLAUDE_MODEL=claude-haiku-4-5-20251001
+GEMINI_MODEL=gemini-2.0-flash
+```
+
+> Note: API keys are stored in GitHub Secrets for CI/CD deployments.
+> For manual installs, add them directly to the .env file.
+> Never commit the .env file to Git -- it is in .gitignore.
+
+### 4 -- Build the project
+```powershell
 npm run build
 ```
-This produces a `dist/` folder (React frontend) and `dist/server.cjs` (Node backend).
+This produces:
+- `dist/` -- compiled React frontend
+- `dist/server.cjs` -- compiled Node.js backend
+- `dist/web.config` -- IIS reverse proxy config (auto-generated by postbuild script)
 
----
-
-## Running the Node.js Server
-
-### Option A — Run manually (for testing)
+### 5 -- Start the server with PM2
 ```powershell
-cd C:\inetpub\wwwroot\WhiteBoardDefense
-npm start
-```
-The server prints: `Whiteboard Defense Server (Ollama/gemma4:latest) live at http://0.0.0.0:3000`
-
-### Option B — Run as a Windows Service (recommended for production)
-Use **NSSM** (Non-Sucking Service Manager) to keep Node running automatically.
-
-1. Download NSSM from https://nssm.cc/download and extract to `C:\nssm\`
-2. In an elevated PowerShell:
-```powershell
-C:\nssm\win64\nssm.exe install WhiteboardDefense "C:\Program Files\nodejs\node.exe" "C:\inetpub\wwwroot\WhiteBoardDefense\dist\server.cjs"
-C:\nssm\win64\nssm.exe set WhiteboardDefense AppDirectory "C:\inetpub\wwwroot\WhiteBoardDefense"
-C:\nssm\win64\nssm.exe set WhiteboardDefense AppEnvironmentExtra "NODE_ENV=production"
-C:\nssm\win64\nssm.exe set WhiteboardDefense Start SERVICE_AUTO_START
-Start-Service WhiteboardDefense
-```
-3. Verify the service is running:
-```powershell
-Get-Service WhiteboardDefense
+pm2 start dist/server.cjs --name WhiteBoardDefense
+pm2 save
+pm2-startup install
 ```
 
----
-
-## IIS Site Configuration
-
+### 6 -- Configure IIS site (Windows Server only)
 1. Open **IIS Manager**
-2. Right-click **Sites** → **Add Website**
+2. Right-click **Sites** -> **Add Website**
    - Site name: `WhiteboardDefense`
-   - Physical path: `C:\inetpub\wwwroot\WhiteBoardDefense`
-   - Binding: HTTP, port 80 (or 443 with a certificate for HTTPS)
-   - Host name: (optional — leave blank to match all hostnames)
+   - Physical path: `C:\inetpub\wwwroot\WhiteBoardDefense\dist`
+   - Binding: HTTP, port 80
 3. Click **OK**
-4. The `web.config` file already in the folder will be picked up automatically.
 
-### WebSocket support
-IIS must allow WebSocket pass-through. In IIS Manager:
-- Select the **WhiteboardDefense** site
-- Double-click **Configuration Editor**
-- Navigate to `system.webServer/webSocket`
-- Set `enabled` to `false` (this tells IIS to let ARR handle WebSocket upgrades instead of IIS's built-in WebSocket handler — already set in web.config)
+The `dist\web.config` file is auto-generated on every build and configures IIS to
+proxy all requests to `http://localhost:3456`. No manual IIS configuration needed.
+
+### 7 -- Open firewall port
+```powershell
+netsh advfirewall firewall add rule name="WhiteboardDefense" dir=in action=allow protocol=TCP localport=3456
+```
+
+---
+
+## Running on a Regular PC (No IIS)
+
+Skip steps 3 and 6 above entirely. After building and starting with PM2:
+
+- Instructor access: `http://localhost:3456`
+- Student access: `http://<your-pc-ip>:3456`
+
+Open the firewall port as shown in step 7 so students on the same network can connect.
 
 ---
 
 ## Verify Everything Works
 
-1. Open a browser on the server and go to `http://localhost`
-   - You should see the WhiteBoardDefense React UI.
-2. Open the browser from another machine using the server's IP/hostname.
-3. Try submitting a paper — the questions should be generated by Ollama.
+1. Open a browser and go to `http://localhost:3456` -- the WhiteBoardDefense UI should load
+2. If using IIS: go to `http://localhost` -- IIS should proxy through to the app
+3. From another device on the same network: go to `http://<SERVER_IP>:3456`
+4. Upload a paper, generate questions -- the AI provider configured in `.env` should respond
 
-### Firewall rule (if accessing from other machines)
+---
+
+## PM2 Commands
+
 ```powershell
-New-NetFirewallRule -DisplayName "WhiteboardDefense HTTP" -Direction Inbound -Protocol TCP -LocalPort 80 -Action Allow
+pm2 start WhiteBoardDefense      # start
+pm2 stop WhiteBoardDefense       # stop
+pm2 restart WhiteBoardDefense    # restart
+pm2 status                       # check status
+pm2 logs WhiteBoardDefense       # view live logs
 ```
-Port 3000 does **not** need to be opened externally — IIS proxies to it internally.
+
+---
+
+## Updating After Code Changes
+
+```powershell
+cd C:\inetpub\wwwroot\WhiteBoardDefense
+git pull origin main
+npm install
+npm run build
+pm2 restart WhiteBoardDefense
+```
+
+---
+
+## AI Provider Temperature Settings
+
+The platform uses different temperatures per task type for consistency and integrity:
+
+| Task | Temperature | Reason |
+|---|---|---|
+| Question generation | 0.7 | Varied questions per student |
+| Oral defense chat | 0.3 | Consistent, harder to fool |
+| Diagram evaluation | 0.3 | Consistent grading |
+| Written answer evaluation | 0.3 | Consistent grading |
+| Metadata analysis | 0.3 | Deterministic scoring |
 
 ---
 
@@ -171,21 +200,35 @@ Port 3000 does **not** need to be opened externally — IIS proxies to it intern
 
 | Symptom | Fix |
 |---|---|
-| `ECONNREFUSED` errors in Node logs | Ollama isn't running — run `ollama serve` or check the Ollama Windows service |
-| Blank page / 502 Bad Gateway in IIS | Node isn't running on port 3000 — check `Get-Service WhiteboardDefense` |
-| WebSocket disconnects immediately | Confirm ARR proxy is enabled and `web.config` is in the site root |
-| Model not found error from Ollama | Run `ollama pull gemma4:latest` again |
-| JSON parse errors from the model | The model returned malformed JSON; consider switching to `llama3.2:latest` or `mistral:latest` as they tend to follow JSON-in-prompt instructions more reliably |
+| 502 Bad Gateway in IIS | Node isn't running -- run `pm2 status` and `pm2 start WhiteBoardDefense` |
+| Share link shows wrong IP | Set `SERVER_IP=x.x.x.x` in `.env` and restart |
+| AI questions not generating | Check API key in `.env` and verify `AI_PROVIDER` matches the key |
+| WebSocket disconnects | Confirm ARR proxy is enabled globally in IIS |
+| Port already in use | Run `pm2 delete WhiteBoardDefense` then `pm2 start dist/server.cjs --name WhiteBoardDefense` |
+| Build fails with non-ASCII error | Run the Unicode cleanup script (see README) then rebuild |
+| Students can't connect | Open port 3456 in Windows Firewall |
 
 ---
 
-## Swapping to a Different Model
+## Environment Variables Reference
 
-Edit `.env` and change `OLLAMA_MODEL`, then restart the service:
-```
-OLLAMA_MODEL=llama3.2:latest
-```
-```powershell
-Restart-Service WhiteboardDefense
-```
-Any model available in `ollama list` will work. Vision/multimodal features (whiteboard snapshot analysis) require a vision-capable model such as `gemma4`, `llava`, or `bakllava`.
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `PORT` | No | 3456 | Port Node.js listens on |
+| `SERVER_IP` | Recommended | auto-detect | LAN IP shown in student share links |
+| `AI_PROVIDER` | No | openai | AI backend: `openai`, `claude`, or `gemini` |
+| `OPENAI_API_KEY` | If using OpenAI | -- | OpenAI API key |
+| `OPENAI_MODEL` | No | gpt-4o-mini | OpenAI model name |
+| `CLAUDE_API_KEY` | If using Claude | -- | Anthropic API key |
+| `CLAUDE_MODEL` | No | claude-haiku-4-5-20251001 | Claude model name |
+| `GEMINI_API_KEY` | If using Gemini | -- | Google AI API key |
+| `GEMINI_MODEL` | No | gemini-2.0-flash | Gemini model name |
+
+---
+
+## Repository
+
+GitHub: https://github.com/dbreeding2/WhiteBoardDefense
+
+API keys for CI/CD are stored as GitHub Secrets and injected automatically
+on deployment -- they do not need to be in the repository.

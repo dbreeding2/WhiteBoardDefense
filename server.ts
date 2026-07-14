@@ -642,22 +642,37 @@ Return a JSON object for the replacement question:
 
 // --- API: Evaluate written answer -----------------------------------------
 app.post("/api/defense/evaluate-written", async (req, res) => {
-  const { questionText, answerText, focusConcept } = req.body;
+  const { questionText, answerText, focusConcept, isDiagramQuestion } = req.body;
   if (!answerText || !questionText) return res.status(400).json({ error: "questionText and answerText required" });
 
-  const prompt = `You are an academic examiner evaluating a student written defense answer.
+  const criteria = isDiagramQuestion
+    ? `Evaluate on three criteria appropriate for a diagram-supported answer:
+1. "Diagram Accuracy" - Does the ASCII/text diagram correctly represent the concept?
+2. "Conceptual Explanation" - Does the written explanation support the diagram?
+3. "Completeness" - Are all key components of the concept represented?`
+    : `Evaluate on three criteria appropriate for a written answer:
+1. "Accuracy" - Is the answer factually correct based on the question?
+2. "Depth of Understanding" - Does the answer demonstrate genuine understanding beyond surface level?
+3. "Conceptual Clarity" - Is the explanation clear and well-organized?
+
+IMPORTANT: Do NOT penalize for missing diagrams on written questions. Only evaluate the quality of the written explanation.`;
+
+  const prompt = `You are an academic examiner evaluating a student defense answer.
 
 Question: "${questionText}"
 Focus Concept: "${focusConcept || "General"}"
+Answer Type: ${isDiagramQuestion ? "Diagram + written explanation" : "Written explanation only"}
 Student Answer: "${answerText}"
 
-Evaluate on three criteria. Respond ONLY with valid JSON, no markdown:
+${criteria}
+
+Respond ONLY with valid JSON, no markdown:
 {
   "overallScore": <integer 0-10>,
   "checks": [
-    { "label": "Accuracy", "pass": <true|false>, "note": "one sentence" },
-    { "label": "Depth of Understanding", "pass": <true|false>, "note": "one sentence" },
-    { "label": "Conceptual Clarity", "pass": <true|false>, "note": "one sentence" }
+    { "label": "<criterion name>", "pass": <true|false>, "note": "one sentence" },
+    { "label": "<criterion name>", "pass": <true|false>, "note": "one sentence" },
+    { "label": "<criterion name>", "pass": <true|false>, "note": "one sentence" }
   ],
   "missingConcepts": [],
   "integritySignal": "low" | "medium" | "high",

@@ -16,6 +16,8 @@ interface DefenseSessionProps {
   onStrokesChange: (idx: number, strokes: DrawingStroke[]) => void;
   allDocs: string[];
   onDocChange: (idx: number, doc: string) => void;
+  allDiagrams: (any | null)[];
+  onDiagramChange: (idx: number, diagram: any) => void;
   activeTab: "draw" | "text" | "diagram";
   onActiveTabChange: (tab: "draw" | "text" | "diagram") => void;
   onSaveSnapshot: (idx: number, b64: string, evaluation?: any) => void;
@@ -48,6 +50,8 @@ export default function DefenseSession({
   onStrokesChange,
   allDocs,
   onDocChange,
+  allDiagrams,
+  onDiagramChange,
   activeTab,
   onActiveTabChange,
   onSaveSnapshot,
@@ -204,7 +208,27 @@ export default function DefenseSession({
               <span className="text-xs font-mono text-white/40 truncate grow mr-2">{shareUrl}</span>
               <button
                 type="button"
-                onClick={() => { navigator.clipboard.writeText(shareUrl); alert("Link copied!"); }}
+                onClick={() => {
+                  if (navigator.clipboard && window.isSecureContext) {
+                    navigator.clipboard.writeText(shareUrl).then(() => alert("Link copied!"));
+                  } else {
+                    // HTTP fallback using a temporary textarea
+                    const el = document.createElement("textarea");
+                    el.value = shareUrl;
+                    el.style.position = "fixed";
+                    el.style.opacity = "0";
+                    document.body.appendChild(el);
+                    el.focus();
+                    el.select();
+                    try {
+                      document.execCommand("copy");
+                      alert("Link copied!");
+                    } catch {
+                      alert("Could not copy automatically. Please copy manually:\n\n" + shareUrl);
+                    }
+                    document.body.removeChild(el);
+                  }
+                }}
                 className="text-[10px] uppercase font-bold text-indigo-400 hover:underline shrink-0 font-mono"
               >
                 Copy Link
@@ -379,6 +403,10 @@ export default function DefenseSession({
                 questionIndex={currentQuestionIndex}
                 questionText={currentQuestion.questionText}
                 focusConcept={currentQuestion.focusConcept}
+                isDiagramQuestion={currentQuestion.focusConcept?.toLowerCase().includes("diagram") ||
+                  currentQuestion.questionText?.toLowerCase().includes("sketch") ||
+                  currentQuestion.questionText?.toLowerCase().includes("draw") ||
+                  currentQuestion.questionText?.toLowerCase().includes("diagram")}
                 role={role}
                 value={allDocs[currentQuestionIndex] || ""}
                 onChange={(newValue) => onDocChange(currentQuestionIndex, newValue)}
@@ -394,6 +422,8 @@ export default function DefenseSession({
                 onCaptureSnapshot={(b64, evaluation) => onSaveSnapshot(currentQuestionIndex, b64, evaluation)}
                 role={role}
                 isVisible={activeTab === "diagram"}
+                savedState={allDiagrams[currentQuestionIndex]}
+                onStateChange={(diagram) => onDiagramChange(currentQuestionIndex, diagram)}
               />
             )}
           </div>

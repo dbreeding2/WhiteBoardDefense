@@ -18,6 +18,7 @@ interface WordProcessorProps {
   questionIndex: number;
   questionText?: string;
   focusConcept?: string;
+  isDiagramQuestion?: boolean;
   role: "student" | "instructor" | "both";
   value: string;
   onChange: (newValue: string) => void;
@@ -41,6 +42,7 @@ export default function WordProcessor({
   questionIndex,
   questionText,
   focusConcept,
+  isDiagramQuestion,
   role,
   value,
   onChange,
@@ -360,7 +362,7 @@ export default function WordProcessor({
       fetch("/api/defense/evaluate-written", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ questionText, answerText, focusConcept }),
+        body: JSON.stringify({ questionText, answerText, focusConcept, isDiagramQuestion }),
       })
         .then(r => r.ok ? r.json() : null)
         .then(evaluation => { onCaptureSnapshot(dataUrl, evaluation || undefined); })

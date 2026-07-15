@@ -510,6 +510,30 @@ export default function DiagramBuilder({
     }));
   }, [nodes, edges, groups, textLabels]);
 
+  // Auto-capture a snapshot for the report whenever the diagram is edited.
+  // Debounced so we don't fire on every intermediate drag frame -- waits
+  // for a short pause in editing, then captures. This ensures a snapshot
+  // exists even if the student never clicks "Evaluate" or "Save Snapshot"
+  // before moving to the next question.
+  const autoCaptureTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (nodes.length === 0 && edges.length === 0 && groups.length === 0 && textLabels.length === 0) {
+      return;
+    }
+    if (autoCaptureTimeoutRef.current) {
+      clearTimeout(autoCaptureTimeoutRef.current);
+    }
+    autoCaptureTimeoutRef.current = setTimeout(() => {
+      captureSnapshot();
+    }, 800);
+
+    return () => {
+      if (autoCaptureTimeoutRef.current) {
+        clearTimeout(autoCaptureTimeoutRef.current);
+      }
+    };
+  }, [nodes, edges, groups, textLabels]);
+
   // Re-detect scenario and restore/clear canvas when question changes
   useEffect(() => {
     const base = getScenario(focusConcept);
@@ -1181,6 +1205,7 @@ Respond ONLY with valid JSON, no markdown fences:
           else data.overallScore = 0;
         }
         setEvaluation(data);
+        captureSnapshot(data);
         // Note: student clicks "Save snapshot" explicitly to record this evaluation
       } else {
         // Fallback local evaluation

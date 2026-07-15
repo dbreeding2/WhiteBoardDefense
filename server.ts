@@ -1,5 +1,7 @@
 import express from "express";
 import http from "http";
+import https from "https";
+import fs from "fs";
 import path from "path";
 import { WebSocketServer, WebSocket } from "ws";
 import dotenv from "dotenv";
@@ -8,7 +10,25 @@ import { createServer as createViteServer } from "vite";
 dotenv.config();
 
 const app = express();
-const server = http.createServer(app);
+
+// --- TLS setup ------------------------------------------------------------
+// No domain name available (students connect via IP:3456 directly), so this
+// terminates TLS in Node itself using a self-signed cert. Students' browsers
+// will show a one-time "not secure" warning to click through -- unavoidable
+// without a domain and a CA like Let's Encrypt.
+const CERT_PATH = process.env.TLS_CERT_PATH || "C:\\certs\\whiteboarddefense\\cert.pem";
+const KEY_PATH = process.env.TLS_KEY_PATH || "C:\\certs\\whiteboarddefense\\key.pem";
+
+let server: http.Server | https.Server;
+const hasCerts = fs.existsSync(CERT_PATH) && fs.existsSync(KEY_PATH);
+if (hasCerts) {
+  const credentials = { key: fs.readFileSync(KEY_PATH), cert: fs.readFileSync(CERT_PATH) };
+  server = https.createServer(credentials, app);
+  console.log("[TLS] HTTPS enabled using cert:", CERT_PATH);
+} else {
+  server = http.createServer(app);
+  console.warn(`[TLS] WARNING: cert files not found at ${CERT_PATH} / ${KEY_PATH} -- falling back to plain HTTP.`);
+}
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3456;
 
 app.use(express.json({ limit: "100mb" }));
@@ -411,35 +431,21 @@ app.get("/api/defense/dashboard-sessions", (_req, res) => {
   return res.json({ sessions: Array.from(sessionMetas.values()) });
 });
 
-// --- API: Server network info for share links ----------------------------
-app.get("/api/server-info", (_req, res) => {
-  // Allow explicit override via .env
-  const envIp = process.env.SERVER_IP;
-  if (envIp) {
-    return res.json({ ip: envIp, port: PORT, baseUrl: `http://${envIp}:${PORT}` });
+// --- API: Server info for share links (student/instructor join links, QR codes) ---
+app.get("/api/server-info", (req, res) => {
+  // Allow explicit override via .env (e.g. if you want to force a specific public hostname)
+  const envHost = process.env.PUBLIC_BASE_URL; // e.g. "https://whiteboarddefense.yourschool.edu"
+  if (envHost) {
+    return res.json({ baseUrl: envHost.replace(/\/$/, "") });
   }
 
-  const { networkInterfaces } = require("os");
-  const nets = networkInterfaces();
-  const candidates: string[] = [];
+  // req.protocol correctly reflects the original client-facing scheme (http vs https)
+  // because IIS/ARR sets X-Forwarded-Proto and we've set `trust proxy` above.
+  // req.get("host") returns the domain the browser actually connected to (with port if non-standard).
+  const protocol = req.protocol; // "https" once behind IIS with a bound cert
+  const host = req.get("host") || `localhost:${PORT}`;
 
-  for (const name of Object.keys(nets)) {
-    for (const net of nets[name]) {
-      if (net.family === "IPv4" && !net.internal) {
-        candidates.push(net.address);
-      }
-    }
-  }
-
-  // Prefer 192.168.0.x / 10.x.x.x / 172.16-31.x.x over virtual adapters
-  const preferred = candidates.find(ip =>
-    ip.startsWith("192.168.0.") ||
-    ip.startsWith("192.168.1.") ||
-    ip.startsWith("10.") ||
-    (ip.startsWith("172.") && parseInt(ip.split(".")[1]) >= 16 && parseInt(ip.split(".")[1]) <= 31)
-  ) || candidates[0] || "localhost";
-
-  return res.json({ ip: preferred, port: PORT, baseUrl: `http://${preferred}:${PORT}` });
+  return res.json({ baseUrl: `${protocol}://${host}` });
 });
 
 // --- API: Generate 8 defense questions ---------------------------------------
@@ -922,7 +928,8 @@ async function initServer() {
   }
 
   server.listen(PORT, "0.0.0.0", () => {
-    console.log(`Whiteboard Defense Server (${AI_PROVIDER.toUpperCase()}/${activeModel}) live at http://0.0.0.0:${PORT}`);
+    const scheme = hasCerts ? "https" : "http";
+    console.log(`Whiteboard Defense Server (${AI_PROVIDER.toUpperCase()}/${activeModel}) live at ${scheme}://0.0.0.0:${PORT}`);
   });
 }
 

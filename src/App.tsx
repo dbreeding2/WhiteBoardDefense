@@ -78,6 +78,14 @@ export default function App() {
   // WebSocket reference
   const wsRef = useRef<WebSocket | null>(null);
 
+  // --- Session persistence ---------------------------------------------------
+  // A completed (or in-progress) session is cached in localStorage so an accidental
+  // refresh, dropped connection, or browser crash doesn't lose a finished assessment.
+  // This is skipped when joining via a share link/QR code (?sessionId=...), since
+  // that URL is an intentional request to join a *specific* session, not restore
+  // whatever was last open in this browser.
+  const SESSION_STORAGE_KEY = "wbd_session_state_v1";
+
   // Keep refs in sync with state for use in WebSocket closures
   useEffect(() => { questionsRef.current = questions; }, [questions]);
   useEffect(() => { studentNameRef.current = studentName; }, [studentName]);
@@ -154,9 +162,76 @@ export default function App() {
       }));
       setQuestions(fallbacks);
     } else {
-      setSessionId(generateSessionId());
+      // No share-link/QR join in progress -- try restoring a previously saved
+      // session (in-progress or completed) before falling back to a brand-new one.
+      let restored = false;
+      try {
+        const raw = localStorage.getItem(SESSION_STORAGE_KEY);
+        if (raw) {
+          const saved = JSON.parse(raw);
+          setCurrentStage(saved.currentStage ?? "setup");
+          setStudentName(saved.studentName ?? "");
+          setPaperTitle(saved.paperTitle ?? "");
+          setCourseName(saved.courseName ?? "");
+          setPastedText(saved.pastedText ?? "");
+          setActivityType(saved.activityType ?? "paper");
+          setQuestions(saved.questions ?? []);
+          setSessionId(saved.sessionId || generateSessionId());
+          setCurrentQuestionIndex(saved.currentQuestionIndex ?? 0);
+          setAllQuestionStrokes(saved.allQuestionStrokes ?? Array(8).fill([]));
+          setAllQuestionDocs(saved.allQuestionDocs ?? Array(8).fill(""));
+          setAllQuestionDiagrams(saved.allQuestionDiagrams ?? Array(8).fill(null));
+          setDiagramDomain(saved.diagramDomain ?? "auto");
+          setSnapshots(saved.snapshots ?? Array(8).fill(""));
+          setDiagramEvaluations(saved.diagramEvaluations ?? Array(8).fill(null));
+          setChatHistory(saved.chatHistory ?? []);
+          setAssessment(saved.assessment ?? null);
+          setMetadataAnalysis(saved.metadataAnalysis ?? null);
+          setRole(saved.role ?? "both");
+          setAssessmentMode(saved.assessmentMode ?? "ai");
+          restored = true;
+        }
+      } catch (err) {
+        console.warn("Failed to restore saved session, starting fresh:", err);
+      }
+      if (!restored) {
+        setSessionId(generateSessionId());
+      }
     }
   }, []);
+
+  // Auto-save session state on every meaningful change (debounced) so a refresh,
+  // dropped connection, or crash can restore right where the user left off.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const fullSnapshot = {
+        currentStage, studentName, paperTitle, courseName, pastedText, activityType,
+        questions, sessionId, currentQuestionIndex,
+        allQuestionStrokes, allQuestionDocs, allQuestionDiagrams, diagramDomain,
+        snapshots, diagramEvaluations, chatHistory, assessment, metadataAnalysis,
+        role, assessmentMode,
+      };
+      try {
+        localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(fullSnapshot));
+      } catch (err) {
+        // Most likely a quota-exceeded error from large whiteboard snapshot images.
+        // Retry without the heaviest fields so the assessment/report text still survives.
+        try {
+          const { allQuestionStrokes: _s, snapshots: _sn, ...lightweight } = fullSnapshot;
+          localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(lightweight));
+        } catch (err2) {
+          console.warn("Session auto-save failed even after trimming payload:", err2);
+        }
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [
+    currentStage, studentName, paperTitle, courseName, pastedText, activityType,
+    questions, sessionId, currentQuestionIndex,
+    allQuestionStrokes, allQuestionDocs, allQuestionDiagrams, diagramDomain,
+    snapshots, diagramEvaluations, chatHistory, assessment, metadataAnalysis,
+    role, assessmentMode,
+  ]);
 
   // Broadcast stage changes to dashboard
   const broadcastStage = (stage: string) => {
@@ -520,6 +595,7 @@ export default function App() {
 
   const handleReset = () => {
     if (window.confirm("Are you sure you want to dismiss the current scorecard and start a new defense session?")) {
+      localStorage.removeItem(SESSION_STORAGE_KEY);
       setStudentName("");
       setPaperTitle("");
       setCourseName("");

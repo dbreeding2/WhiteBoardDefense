@@ -233,6 +233,9 @@ export default function ReportViewer({
           doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
         }
 
+        // Track the actual bottom of this block's content (starts at the image's own bottom edge)
+        let blockBottomY = currentY + 55;
+
         if (evalResult) {
           doc.setFont("Helvetica", "normal");
           doc.setFontSize(9);
@@ -262,6 +265,9 @@ export default function ReportViewer({
           doc.setTextColor(grayTextColor[0], grayTextColor[1], grayTextColor[2]);
           const note = doc.splitTextToSize(evalResult.integrityNote, 80);
           doc.text(note, 105, checkY);
+          checkY += note.length * 4;
+
+          blockBottomY = Math.max(blockBottomY, checkY);
         } else {
           // Written submission -- show the actual text content
           doc.setFont("Helvetica", "normal");
@@ -279,17 +285,22 @@ export default function ReportViewer({
             const wrapped = doc.splitTextToSize(writtenText, 80);
             const preview = wrapped.slice(0, 8); // max 8 lines
             doc.text(preview, 105, currentY + 26);
+            let textBottomY = currentY + 26 + (preview.length * 4);
             if (wrapped.length > 8) {
               doc.setFont("Helvetica", "italic");
-              doc.text("[truncated...]", 105, currentY + 26 + (preview.length * 4));
+              doc.text("[truncated...]", 105, textBottomY);
+              textBottomY += 4;
             }
+            blockBottomY = Math.max(blockBottomY, textBottomY);
           } else {
             doc.text("Written answer captured in snapshot.", 105, currentY + 26);
+            blockBottomY = Math.max(blockBottomY, currentY + 30);
           }
         }
 
         doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-        currentY += 70;
+        // Advance by the real content height (plus spacing), not a fixed guess
+        currentY = blockBottomY + 12;
 
         if (currentY > 240 && idx < validSnapshots.length - 1) {
           doc.addPage();

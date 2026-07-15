@@ -25,10 +25,12 @@ export interface MetadataAnalysisData {
   passiveVoicePercent: number;
   keyConcepts: string[];
   standardsCompliance: {
-    hasAbstract: boolean;
-    hasMethodology: boolean;
-    hasCitations: boolean;
+    // Activity-type-specific boolean fields (paper: hasAbstract/hasMethodology/hasCitations,
+    // presentation: hasObjective/hasVisuals/hasConclusion, project: hasRequirements/hasArchitecture/hasTestPlan).
+    // Not read directly by this component -- use `checks` below instead, which server.ts
+    // populates consistently for every activity type.
     formatCheckScore: number;
+    checks?: { label: string; status: string }[];
   };
   aiLikelihood: {
     score: number;
@@ -114,44 +116,32 @@ export default function MetadataAnalyzer({ analysis, isLoading }: MetadataAnalyz
         </div>
 
         <div className="space-y-2 text-xs">
-          <div className="flex items-center justify-between p-2 bg-black/30 rounded border border-white/5">
-            <span className="text-white/60 font-mono text-[11px]">Abstract / Intent Summary</span>
-            {analysis.standardsCompliance?.hasAbstract ? (
-              <span className="flex items-center gap-1 text-[10px] font-bold uppercase text-emerald-400 font-mono bg-emerald-500/5 px-2 py-0.5 rounded border border-emerald-500/15">
-                <CheckCircle className="w-3 h-3" /> Detected
-              </span>
-            ) : (
-              <span className="flex items-center gap-1 text-[10px] font-bold uppercase text-red-400 font-mono bg-red-500/5 px-2 py-0.5 rounded border border-red-500/15">
-                <XCircle className="w-3 h-3" /> Missing label
-              </span>
-            )}
-          </div>
-
-          <div className="flex items-center justify-between p-2 bg-black/30 rounded border border-white/5">
-            <span className="text-white/60 font-mono text-[11px]">Methodology & Constraints</span>
-            {analysis.standardsCompliance?.hasMethodology ? (
-              <span className="flex items-center gap-1 text-[10px] font-bold uppercase text-emerald-400 font-mono bg-emerald-500/5 px-2 py-0.5 rounded border border-emerald-500/15">
-                <CheckCircle className="w-3 h-3" /> Detected
-              </span>
-            ) : (
-              <span className="flex items-center gap-1 text-[10px] font-bold uppercase text-red-400 font-mono bg-red-500/5 px-2 py-0.5 rounded border border-red-500/15">
-                <XCircle className="w-3 h-3" /> Thin section
-              </span>
-            )}
-          </div>
-
-          <div className="flex items-center justify-between p-2 bg-black/30 rounded border border-white/5">
-            <span className="text-white/60 font-mono text-[11px]">Standard Citations Index</span>
-            {analysis.standardsCompliance?.hasCitations ? (
-              <span className="flex items-center gap-1 text-[10px] font-bold uppercase text-emerald-400 font-mono bg-emerald-500/5 px-2 py-0.5 rounded border border-emerald-500/15">
-                <CheckCircle className="w-3 h-3" /> Detected
-              </span>
-            ) : (
-              <span className="flex items-center gap-1 text-[10px] font-bold uppercase text-yellow-400 font-mono bg-yellow-500/5 px-2 py-0.5 rounded border border-yellow-500/15 animate-pulse">
-                <AlertTriangle className="w-3 h-3" /> Manual Check Req.
-              </span>
-            )}
-          </div>
+          {analysis.standardsCompliance?.checks && analysis.standardsCompliance.checks.length > 0 ? (
+            analysis.standardsCompliance.checks.map((check, i) => {
+              const isPass = check.status === "PRESENT";
+              const isWarn = check.status === "MANUAL CHECK REQ." || check.status === "THIN SECTION";
+              return (
+                <div key={i} className="flex items-center justify-between p-2 bg-black/30 rounded border border-white/5">
+                  <span className="text-white/60 font-mono text-[11px]">{check.label}</span>
+                  {isPass ? (
+                    <span className="flex items-center gap-1 text-[10px] font-bold uppercase text-emerald-400 font-mono bg-emerald-500/5 px-2 py-0.5 rounded border border-emerald-500/15">
+                      <CheckCircle className="w-3 h-3" /> Detected
+                    </span>
+                  ) : isWarn ? (
+                    <span className="flex items-center gap-1 text-[10px] font-bold uppercase text-yellow-400 font-mono bg-yellow-500/5 px-2 py-0.5 rounded border border-yellow-500/15 animate-pulse">
+                      <AlertTriangle className="w-3 h-3" /> {check.status === "THIN SECTION" ? "Thin section" : "Manual Check Req."}
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-[10px] font-bold uppercase text-red-400 font-mono bg-red-500/5 px-2 py-0.5 rounded border border-red-500/15">
+                      <XCircle className="w-3 h-3" /> {check.status === "MISSING LABEL" ? "Missing label" : "Missing"}
+                    </span>
+                  )}
+                </div>
+              );
+            })
+          ) : (
+            <p className="text-xs text-white/30 italic font-mono text-center py-2">No compliance checks available.</p>
+          )}
         </div>
       </div>
 

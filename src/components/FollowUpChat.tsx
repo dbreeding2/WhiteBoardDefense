@@ -374,6 +374,21 @@ export default function FollowUpChat({
           jsonText = jsonText.replace(/,(\s*[\]}])/g, "$1");
 
           const assessment: AIPreparedAssessment = JSON.parse(jsonText);
+
+          // Hard server-independent completion-rate cap: prevent inflated scores
+          // when most questions were never answered, regardless of what the AI returned.
+          const totalQ = questions?.length || 8;
+          const answeredCount = (snapshots || []).filter((s) => s && s.trim().length > 0).length;
+          const completionRatio = totalQ > 0 ? answeredCount / totalQ : 1;
+          const maxAllowedScore = Math.round(completionRatio * 100 + 10); // small partial-credit allowance
+          if (typeof assessment.overallScore === "number" && assessment.overallScore > maxAllowedScore) {
+            console.warn(`Capping inflated score ${assessment.overallScore} -> ${maxAllowedScore} (only ${answeredCount}/${totalQ} questions answered)`);
+            assessment.overallScore = maxAllowedScore;
+            if (completionRatio < 0.5) {
+              assessment.recommendedGrade = completionRatio < 0.25 ? "F" : "C-";
+            }
+          }
+
           onDefenseCompleted(assessment);
           notifyPeerStateChange("assessment_finalized", { assessment });
         } catch (jsonErr) {

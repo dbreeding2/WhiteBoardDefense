@@ -1,7 +1,5 @@
 import express from "express";
 import http from "http";
-import https from "https";
-import fs from "fs";
 import path from "path";
 import { WebSocketServer, WebSocket } from "ws";
 import dotenv from "dotenv";
@@ -10,25 +8,7 @@ import { createServer as createViteServer } from "vite";
 dotenv.config();
 
 const app = express();
-
-// --- TLS setup ------------------------------------------------------------
-// No domain name available (students connect via IP:3456 directly), so this
-// terminates TLS in Node itself using a self-signed cert. Students' browsers
-// will show a one-time "not secure" warning to click through -- unavoidable
-// without a domain and a CA like Let's Encrypt.
-const CERT_PATH = process.env.TLS_CERT_PATH || "C:\\certs\\whiteboarddefense\\cert.pem";
-const KEY_PATH = process.env.TLS_KEY_PATH || "C:\\certs\\whiteboarddefense\\key.pem";
-
-let server: http.Server | https.Server;
-const hasCerts = fs.existsSync(CERT_PATH) && fs.existsSync(KEY_PATH);
-if (hasCerts) {
-  const credentials = { key: fs.readFileSync(KEY_PATH), cert: fs.readFileSync(CERT_PATH) };
-  server = https.createServer(credentials, app);
-  console.log("[TLS] HTTPS enabled using cert:", CERT_PATH);
-} else {
-  server = http.createServer(app);
-  console.warn(`[TLS] WARNING: cert files not found at ${CERT_PATH} / ${KEY_PATH} -- falling back to plain HTTP.`);
-}
+const server = http.createServer(app);
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3456;
 
 app.use(express.json({ limit: "100mb" }));
@@ -431,21 +411,35 @@ app.get("/api/defense/dashboard-sessions", (_req, res) => {
   return res.json({ sessions: Array.from(sessionMetas.values()) });
 });
 
-// --- API: Server info for share links (student/instructor join links, QR codes) ---
-app.get("/api/server-info", (req, res) => {
-  // Allow explicit override via .env (e.g. if you want to force a specific public hostname)
-  const envHost = process.env.PUBLIC_BASE_URL; // e.g. "https://whiteboarddefense.yourschool.edu"
-  if (envHost) {
-    return res.json({ baseUrl: envHost.replace(/\/$/, "") });
+// --- API: Server network info for share links ----------------------------
+app.get("/api/server-info", (_req, res) => {
+  // Allow explicit override via .env
+  const envIp = process.env.SERVER_IP;
+  if (envIp) {
+    return res.json({ ip: envIp, port: PORT, baseUrl: `http://${envIp}:${PORT}` });
   }
 
-  // req.protocol correctly reflects the original client-facing scheme (http vs https)
-  // because IIS/ARR sets X-Forwarded-Proto and we've set `trust proxy` above.
-  // req.get("host") returns the domain the browser actually connected to (with port if non-standard).
-  const protocol = req.protocol; // "https" once behind IIS with a bound cert
-  const host = req.get("host") || `localhost:${PORT}`;
+  const { networkInterfaces } = require("os");
+  const nets = networkInterfaces();
+  const candidates: string[] = [];
 
-  return res.json({ baseUrl: `${protocol}://${host}` });
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name]) {
+      if (net.family === "IPv4" && !net.internal) {
+        candidates.push(net.address);
+      }
+    }
+  }
+
+  // Prefer 192.168.0.x / 10.x.x.x / 172.16-31.x.x over virtual adapters
+  const preferred = candidates.find(ip =>
+    ip.startsWith("192.168.0.") ||
+    ip.startsWith("192.168.1.") ||
+    ip.startsWith("10.") ||
+    (ip.startsWith("172.") && parseInt(ip.split(".")[1]) >= 16 && parseInt(ip.split(".")[1]) <= 31)
+  ) || candidates[0] || "localhost";
+
+  return res.json({ ip: preferred, port: PORT, baseUrl: `http://${preferred}:${PORT}` });
 });
 
 // --- API: Generate 8 defense questions ---------------------------------------
@@ -803,6 +797,16 @@ app.post("/api/defense/chat", async (req, res) => {
   const nextQIdx = Math.min(effectiveQIdx + 1, totalQuestions - 1);
   const nextQ = questions?.[nextQIdx];
 
+  // Real completion count: how many questions actually have a recorded snapshot (Stage 3),
+  // combined with how far the oral follow-up (Stage 4) has progressed. Use whichever is higher.
+  const snapshotsAnswered = (snapshots || []).filter((s: string) => s && s.trim().length > 0).length;
+  const chatAnswered = studentTurns > 0 ? effectiveQIdx + (roundOnCurrentQ >= 1 ? 1 : 0) : 0;
+  const questionsAnswered = Math.max(snapshotsAnswered, chatAnswered);
+  const unansweredQuestionTexts = (questions || [])
+    .map((q: any, i: number) => ({ q, i }))
+    .filter(({ i }: any) => i >= questionsAnswered)
+    .map(({ q }: any) => q.questionText);
+
   try {
     const recentHistory = chatHistory || [];
     const printedHistory = recentHistory
@@ -884,6 +888,15 @@ CRITICAL RULES FOR ASSESSMENT:
 - Base every finding on specific student responses visible in the transcript
 - suspicionLevel scaling: "Low" is the default for a student who answers consistently in their own words, even if some answers were briefly flagged as "unusually structured" during the session -- being asked to rephrase once or twice and doing so successfully is NORMAL and should NOT push suspicion above "Low". Only use "Medium" if 3+ answers showed genuine AI artifacts (ASCII diagrams, AI-assistant phrasing) that the student could not adequately explain in plain language when asked. Only use "High" if the student was unable to explain their own answers in follow-up, or repeated identical content across multiple questions.
 - Do not let a temporary "unusually structured" prompt from earlier in the transcript automatically raise suspicion if the student's subsequent explanation was clear and consistent with their other answers.
+
+COMPLETION-RATE SCORING -- THIS IS MANDATORY AND OVERRIDES QUALITY-ONLY SCORING:
+- Total defense questions in this session: ${totalQuestions}
+- Questions the student actually answered with substantive content: ${questionsAnswered} out of ${totalQuestions}
+- Unanswered questions: ${unansweredQuestionTexts.length > 0 ? unansweredQuestionTexts.join(" | ") : "none -- all questions were answered"}
+- The overallScore MUST reflect BOTH the quality of what was answered AND the fraction of questions actually completed. A student who answers only ${questionsAnswered} of ${totalQuestions} questions perfectly cannot score above approximately ${Math.round((questionsAnswered/totalQuestions)*100 + 10)} -- do NOT inflate this based on quality alone.
+- Exact formula to follow: overallScore = round((${questionsAnswered} / ${totalQuestions}) × quality_score_0_to_100), where quality_score reflects only the answered questions. Add at most 5-10 points of partial credit for effort, never more.
+- If ${questionsAnswered} out of ${totalQuestions} is less than half, the recommendedGrade MUST be in the C/D/F range regardless of how good the few answered responses were -- an incomplete defense cannot earn an A or B grade.
+- gapsIdentified MUST explicitly list each unanswered question topic from the "Unanswered questions" list above, not just a vague "needs more detail" note.
 ` : ""}`;
 
     const base64Images: string[] = [];
@@ -928,8 +941,7 @@ async function initServer() {
   }
 
   server.listen(PORT, "0.0.0.0", () => {
-    const scheme = hasCerts ? "https" : "http";
-    console.log(`Whiteboard Defense Server (${AI_PROVIDER.toUpperCase()}/${activeModel}) live at ${scheme}://0.0.0.0:${PORT}`);
+    console.log(`Whiteboard Defense Server (${AI_PROVIDER.toUpperCase()}/${activeModel}) live at http://0.0.0.0:${PORT}`);
   });
 }
 

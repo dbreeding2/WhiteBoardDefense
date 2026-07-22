@@ -783,13 +783,20 @@ app.post("/api/defense/chat", async (req, res) => {
   const {
     chatHistory, snapshots, studentName, paperTitle,
     courseName, questions, pastedText, conclude, activityType,
-    currentQuestionIndex,
+    currentQuestionIndex, turnCount,
   } = req.body;
 
   const activityName = activityType || "Research Paper";
   const totalQuestions = questions?.length || 8;
-  // Count only student messages to determine which question we're on
-  const studentTurns = (chatHistory || []).filter((m: any) => m.sender === "student").length;
+  // Prefer the client's authoritative turn counter (tracked in React state,
+  // incremented exactly once per student submission) over recounting from the
+  // chatHistory array. Recounting from the array is fragile: any transient
+  // sync duplication or stale-closure timing issue can cause the same round
+  // number to be computed twice in a row, which makes the AI ask an identical
+  // question twice. The client-side counter cannot drift the same way because
+  // it's incremented atomically at send-time, independent of array content.
+  const arrayBasedTurns = (chatHistory || []).filter((m: any) => m.sender === "student").length;
+  const studentTurns = typeof turnCount === "number" && turnCount > 0 ? turnCount : arrayBasedTurns;
   // Each question gets 2 student turns (initial + follow-up) before advancing
   const effectiveQIdx = Math.min(Math.floor(studentTurns / 2), totalQuestions - 1);
   const roundOnCurrentQ = (studentTurns % 2) + 1; // 1 = first answer, 2 = follow-up answered
@@ -894,7 +901,7 @@ COMPLETION-RATE SCORING -- THIS IS MANDATORY AND OVERRIDES QUALITY-ONLY SCORING:
 - Questions the student actually answered with substantive content: ${questionsAnswered} out of ${totalQuestions}
 - Unanswered questions: ${unansweredQuestionTexts.length > 0 ? unansweredQuestionTexts.join(" | ") : "none -- all questions were answered"}
 - The overallScore MUST reflect BOTH the quality of what was answered AND the fraction of questions actually completed. A student who answers only ${questionsAnswered} of ${totalQuestions} questions perfectly cannot score above approximately ${Math.round((questionsAnswered/totalQuestions)*100 + 10)} -- do NOT inflate this based on quality alone.
-- Exact formula to follow: overallScore = round((${questionsAnswered} / ${totalQuestions}) × quality_score_0_to_100), where quality_score reflects only the answered questions. Add at most 5-10 points of partial credit for effort, never more.
+- Exact formula to follow: overallScore = round((${questionsAnswered} / ${totalQuestions}) x quality_score_0_to_100), where quality_score reflects only the answered questions. Add at most 5-10 points of partial credit for effort, never more.
 - If ${questionsAnswered} out of ${totalQuestions} is less than half, the recommendedGrade MUST be in the C/D/F range regardless of how good the few answered responses were -- an incomplete defense cannot earn an A or B grade.
 - gapsIdentified MUST explicitly list each unanswered question topic from the "Unanswered questions" list above, not just a vague "needs more detail" note.
 ` : ""}`;
@@ -914,10 +921,26 @@ COMPLETION-RATE SCORING -- THIS IS MANDATORY AND OVERRIDES QUALITY-ONLY SCORING:
           : `The student just answered Q${effectiveQIdx + 1} for the first time. Ask one targeted follow-up.`
     }`;
 
-    const aiResponseText =
+    let aiResponseText =
       base64Images.length > 0
         ? await generateMultimodal(userText, base64Images)
         : await generateText(userText);
+
+    // Safety net: if the model somehow repeats its own last question verbatim
+    // (guards against any residual round-tracking drift), force one retry with
+    // an explicit instruction not to repeat.
+    const lastAiMsg = (chatHistory || []).filter((m: any) => m.sender === "ai").slice(-1)[0];
+    if (!conclude && lastAiMsg?.text) {
+      const normalize = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
+      if (normalize(aiResponseText).slice(0, 150) === normalize(lastAiMsg.text).slice(0, 150)) {
+        console.warn("[defense-chat] Detected duplicate AI question, forcing retry with explicit anti-repeat instruction.");
+        const retryText = `${userText}\n\nIMPORTANT: Your previous response was identical to your last question. You MUST NOT repeat it. Ask a genuinely different follow-up or move to the next question as instructed above.`;
+        aiResponseText =
+          base64Images.length > 0
+            ? await generateMultimodal(retryText, base64Images)
+            : await generateText(retryText);
+      }
+    }
 
     return res.json({ text: aiResponseText });
   } catch (err: any) {

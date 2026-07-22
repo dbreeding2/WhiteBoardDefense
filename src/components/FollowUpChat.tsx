@@ -375,18 +375,26 @@ export default function FollowUpChat({
 
           const assessment: AIPreparedAssessment = JSON.parse(jsonText);
 
-          // Hard server-independent completion-rate cap: prevent inflated scores
-          // when most questions were never answered, regardless of what the AI returned.
+          // Hard server-independent completion-rate enforcement: prevent inflated scores
+          // AND inflated grades when most questions were never answered, regardless of
+          // what the AI returned. These two checks are independent -- a low score doesn't
+          // guarantee the AI also chose an appropriately low grade.
           const totalQ = questions?.length || 8;
           const answeredCount = (snapshots || []).filter((s) => s && s.trim().length > 0).length;
           const completionRatio = totalQ > 0 ? answeredCount / totalQ : 1;
           const maxAllowedScore = Math.round(completionRatio * 100 + 10); // small partial-credit allowance
+
           if (typeof assessment.overallScore === "number" && assessment.overallScore > maxAllowedScore) {
             console.warn(`Capping inflated score ${assessment.overallScore} -> ${maxAllowedScore} (only ${answeredCount}/${totalQ} questions answered)`);
             assessment.overallScore = maxAllowedScore;
-            if (completionRatio < 0.5) {
-              assessment.recommendedGrade = completionRatio < 0.25 ? "F" : "C-";
-            }
+          }
+
+          // Grade enforcement runs independently -- always check completion ratio,
+          // not just when the score itself needed capping.
+          if (completionRatio < 0.25) {
+            assessment.recommendedGrade = "F";
+          } else if (completionRatio < 0.5) {
+            assessment.recommendedGrade = "C-";
           }
 
           onDefenseCompleted(assessment);

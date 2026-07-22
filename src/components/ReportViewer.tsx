@@ -233,9 +233,6 @@ export default function ReportViewer({
           doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
         }
 
-        // Track the actual bottom of this block's content (starts at the image's own bottom edge)
-        let blockBottomY = currentY + 55;
-
         if (evalResult) {
           doc.setFont("Helvetica", "normal");
           doc.setFontSize(9);
@@ -265,9 +262,6 @@ export default function ReportViewer({
           doc.setTextColor(grayTextColor[0], grayTextColor[1], grayTextColor[2]);
           const note = doc.splitTextToSize(evalResult.integrityNote, 80);
           doc.text(note, 105, checkY);
-          checkY += note.length * 4;
-
-          blockBottomY = Math.max(blockBottomY, checkY);
         } else {
           // Written submission -- show the actual text content
           doc.setFont("Helvetica", "normal");
@@ -285,22 +279,17 @@ export default function ReportViewer({
             const wrapped = doc.splitTextToSize(writtenText, 80);
             const preview = wrapped.slice(0, 8); // max 8 lines
             doc.text(preview, 105, currentY + 26);
-            let textBottomY = currentY + 26 + (preview.length * 4);
             if (wrapped.length > 8) {
               doc.setFont("Helvetica", "italic");
-              doc.text("[truncated...]", 105, textBottomY);
-              textBottomY += 4;
+              doc.text("[truncated...]", 105, currentY + 26 + (preview.length * 4));
             }
-            blockBottomY = Math.max(blockBottomY, textBottomY);
           } else {
             doc.text("Written answer captured in snapshot.", 105, currentY + 26);
-            blockBottomY = Math.max(blockBottomY, currentY + 30);
           }
         }
 
         doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-        // Advance by the real content height (plus spacing), not a fixed guess
-        currentY = blockBottomY + 12;
+        currentY += 70;
 
         if (currentY > 240 && idx < validSnapshots.length - 1) {
           doc.addPage();
@@ -311,8 +300,13 @@ export default function ReportViewer({
       }
     });
 
-    // Save
-    doc.save(`Defense_Integrity_Report_${studentName.replace(/\s+/g, "_")}.pdf`);
+    // Open in new tab instead of forcing an automatic download.
+    // Auto-downloaded files from internal/unfamiliar domains often get flagged
+    // as "unsafe" by Chrome/Edge Safe Browsing heuristics. Opening in-browser
+    // lets the user view it immediately and manually save via the PDF viewer's
+    // own save button, which does not trigger that warning.
+    const blobUrl = doc.output("bloburl");
+    window.open(blobUrl as unknown as string, "_blank");
   };
 
   return (
@@ -526,7 +520,7 @@ export default function ReportViewer({
         <div>
           <h4 className="text-sm font-bold text-white/90">Publish Final Examination Report</h4>
           <p className="text-xs text-white/40 mt-0.5 font-sans leading-relaxed">
-            Export the official university integrity evaluation PDF detailing transcript responses and the registered whiteboard drawing proofs.
+            Opens the official university integrity evaluation PDF in a new tab, detailing transcript responses and the registered whiteboard drawing proofs. Use your browser's save icon in the PDF viewer to download a copy.
           </p>
         </div>
 
@@ -545,7 +539,7 @@ export default function ReportViewer({
             onClick={handleExportPDF}
             className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold p-3 px-6 transition hover:scale-105 active:scale-95 shadow-md cursor-pointer"
           >
-            <FileText className="w-4 h-4 text-[#F8FAFC]" /> Export Full Academic Defense PDF
+            <FileText className="w-4 h-4 text-[#F8FAFC]" /> View Full Academic Defense PDF
           </button>
         </div>
       </div>

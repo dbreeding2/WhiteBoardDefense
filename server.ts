@@ -950,7 +950,8 @@ COMPLETION-RATE SCORING -- THIS IS MANDATORY AND OVERRIDES QUALITY-ONLY SCORING:
 
 // --- Vite / static file serving ----------------------------------------------
 async function initServer() {
-  if (process.env.NODE_ENV !== "production") {
+  const nodeEnv = process.env.NODE_ENV || "development";
+  if (nodeEnv !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
@@ -962,7 +963,7 @@ async function initServer() {
   }
 
   server.listen(PORT, "0.0.0.0", () => {
-    console.log(`Whiteboard Defense Server (${AI_PROVIDER.toUpperCase()}/${activeModel}) live at http://0.0.0.0:${PORT}`);
+    console.log(`Whiteboard Defense Server [${nodeEnv}] (${AI_PROVIDER.toUpperCase()}/${activeModel}) live at http://0.0.0.0:${PORT}`);
   });
 }
 

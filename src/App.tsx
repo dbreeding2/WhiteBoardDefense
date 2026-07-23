@@ -256,7 +256,8 @@ export default function App() {
     if (!sessionId) return;
 
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    const basePath = import.meta.env.BASE_URL || '/';
+    const wsUrl = `${protocol}//${window.location.host}${basePath}/ws`;
     const socket = new WebSocket(wsUrl);
     wsRef.current = socket;
 

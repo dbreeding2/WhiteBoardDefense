@@ -1,8 +1,8 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
-import path from 'path';
-import {defineConfig} from 'vite';
 import fs from 'fs';
+import path from 'path';
+import { defineConfig } from 'vite';
 
 // Read .env manually to bypass dotenvx interception
 function readEnvFile(): Record<string, string> {
@@ -20,6 +20,7 @@ function readEnvFile(): Record<string, string> {
 export default defineConfig(() => {
   const env = readEnvFile();
   return {
+    base: env.VITE_BASE_PATH || '/',
     plugins: [react(), tailwindcss()],
     define: {
       'import.meta.env.VITE_APP_URL': JSON.stringify(env.VITE_APP_URL || ''),
@@ -30,7 +31,14 @@ export default defineConfig(() => {
       },
     },
     server: {
-      hmr: process.env.DISABLE_HMR !== 'true',
+      // HMR must bypass the proxy and connect directly to the dev server
+      hmr: process.env.DISABLE_HMR !== 'true'
+        ? {
+          host: 'localhost',
+          port: 5173,
+          protocol: 'ws',
+        }
+        : false,
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
     },
   };

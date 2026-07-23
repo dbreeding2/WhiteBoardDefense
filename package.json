@@ -7,7 +7,7 @@
     "dev": "tsx server.ts",
     "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "postbuild": "node -e \"require('fs').writeFileSync('dist/web.config', '<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?><configuration><system.webServer><rewrite><rules><rule name=\\\"ReverseProxyToNode\\\" stopProcessing=\\\"true\\\"><match url=\\\"(.*)\\\" /><action type=\\\"Rewrite\\\" url=\\\"http://localhost:3456/{R:1}\\\" /></rule></rules></rewrite><security><requestFiltering><requestLimits maxAllowedContentLength=\\\"52428800\\\" /></requestFiltering></security></system.webServer></configuration>')\"",
-    "start": "node dist/server.cjs",
+    "start": "cross-env NODE_ENV=production node dist/server.cjs",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit"
   },
@@ -34,6 +34,7 @@
     "@types/react-dom": "^19.0.1",
     "@types/ws": "^8.18.1",
     "autoprefixer": "^10.4.21",
+    "cross-env": "^10.1.0",
     "esbuild": "^0.25.0",
     "tailwindcss": "^4.1.14",
     "tsx": "^4.21.0",

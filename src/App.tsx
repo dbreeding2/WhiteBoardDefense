@@ -7,6 +7,7 @@ import ReportViewer from "./components/ReportViewer";
 import ReviewQuestions from "./components/ReviewQuestions";
 import SetupForm from "./components/SetupForm";
 import { AIPreparedAssessment, ChatMessage, DefenseQuestion, DrawingStroke } from "./types";
+import { generateSessionId } from "./utils/sessionId";
 
 export default function App() {
   // Inject global accessibility CSS
@@ -91,11 +92,6 @@ export default function App() {
   useEffect(() => { studentNameRef.current = studentName; }, [studentName]);
   useEffect(() => { paperTitleRef.current = paperTitle; }, [paperTitle]);
   useEffect(() => { courseNameRef.current = courseName; }, [courseName]);
-
-  // Generate unique session ID
-  const generateSessionId = () => {
-    return Math.random().toString(36).substring(2, 8).toUpperCase();
-  };
 
   // Poll REST endpoint for questions when joining via URL (student or instructor via "View Session")
   useEffect(() => {

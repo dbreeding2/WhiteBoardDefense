@@ -1,6 +1,7 @@
 import { CheckCircle, ChevronRight, Clock, Copy, Layers, Monitor, Plus, Users } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import { toSafePngDataUrl } from "../utils/dataUrl";
+import { isValidSessionId, normalizeSessionId } from "../utils/sessionId";
 
 interface SessionMeta {
   sessionId: string;
@@ -108,7 +109,10 @@ export default function InstructorDashboard({ wsRef, onNewSession }: InstructorD
   }, []);
 
   const copyLink = (sessionId: string) => {
-    const url = `${serverBaseUrl}/?sessionId=${sessionId}&role=student`;
+    const normalizedSessionId = normalizeSessionId(sessionId);
+    if (!isValidSessionId(normalizedSessionId)) return;
+
+    const url = `${serverBaseUrl}/?sessionId=${normalizedSessionId}&role=student`;
     const doCopy = () => {
       if (navigator.clipboard && window.isSecureContext) {
         navigator.clipboard.writeText(url).then(() => {
@@ -137,7 +141,10 @@ export default function InstructorDashboard({ wsRef, onNewSession }: InstructorD
   };
 
   const openSession = (sessionId: string) => {
-    window.open(`${serverBaseUrl}/?sessionId=${sessionId}&role=instructor`, "_blank");
+    const normalizedSessionId = normalizeSessionId(sessionId);
+    if (!isValidSessionId(normalizedSessionId)) return;
+
+    window.open(`${serverBaseUrl}/?sessionId=${normalizedSessionId}&role=instructor`, "_blank");
   };
 
   const activeSessions = sessions.filter(s => s.stage !== "complete");
@@ -285,8 +292,11 @@ export default function InstructorDashboard({ wsRef, onNewSession }: InstructorD
                       type="button"
                       onClick={() => {
                         if (window.confirm(`Remove session ${session.sessionId} from the dashboard?`)) {
+                          const normalizedSessionId = normalizeSessionId(session.sessionId);
+                          if (!isValidSessionId(normalizedSessionId)) return;
+
                           setSessions(prev => prev.filter(s => s.sessionId !== session.sessionId));
-                          fetch(`/api/defense/session-questions/${session.sessionId}`, { method: "DELETE" }).catch(() => { });
+                          fetch(`/api/defense/session-questions/${encodeURIComponent(normalizedSessionId)}`, { method: "DELETE" }).catch(() => { });
                         }
                       }}
                       aria-label={`Remove session ${session.sessionId} from dashboard`}

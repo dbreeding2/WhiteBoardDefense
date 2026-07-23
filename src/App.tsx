@@ -7,7 +7,7 @@ import ReportViewer from "./components/ReportViewer";
 import ReviewQuestions from "./components/ReviewQuestions";
 import SetupForm from "./components/SetupForm";
 import { AIPreparedAssessment, ChatMessage, DefenseQuestion, DrawingStroke } from "./types";
-import { generateSessionId } from "./utils/sessionId";
+import { generateSessionId, isValidSessionId, normalizeSessionId } from "./utils/sessionId";
 
 export default function App() {
   // Inject global accessibility CSS
@@ -106,7 +106,9 @@ export default function App() {
       if (attempts >= maxAttempts) return;
       attempts++;
       try {
-        const res = await fetch(`/api/defense/session-questions/${sessionId}`);
+        if (!isValidSessionId(sessionId)) return;
+
+        const res = await fetch(`/api/defense/session-questions/${encodeURIComponent(sessionId)}`);
         if (res.ok) {
           const data = await res.json();
           if (data.questions && data.questions.length > 0) {
@@ -131,6 +133,7 @@ export default function App() {
   useEffect(() => {
     const queryParams = new URLSearchParams(window.location.search);
     const urlSessionId = queryParams.get("sessionId");
+    const normalizedUrlSessionId = urlSessionId ? normalizeSessionId(urlSessionId) : null;
     const urlRole = queryParams.get("role") as 'student' | 'instructor' | 'both' | null;
     const isDashboard = queryParams.get("dashboard") === "true";
 
@@ -139,8 +142,8 @@ export default function App() {
       return;
     }
 
-    if (urlSessionId) {
-      setSessionId(urlSessionId);
+    if (normalizedUrlSessionId && isValidSessionId(normalizedUrlSessionId)) {
+      setSessionId(normalizedUrlSessionId);
       setRole(urlRole || 'student');
       setCurrentStage('session');
 
@@ -172,7 +175,14 @@ export default function App() {
           setPastedText(saved.pastedText ?? "");
           setActivityType(saved.activityType ?? "paper");
           setQuestions(saved.questions ?? []);
-          setSessionId(saved.sessionId || generateSessionId());
+          const normalizedSavedSessionId = typeof saved.sessionId === "string"
+            ? normalizeSessionId(saved.sessionId)
+            : "";
+          setSessionId(
+            normalizedSavedSessionId && isValidSessionId(normalizedSavedSessionId)
+              ? normalizedSavedSessionId
+              : generateSessionId()
+          );
           setCurrentQuestionIndex(saved.currentQuestionIndex ?? 0);
           setAllQuestionStrokes(saved.allQuestionStrokes ?? Array(8).fill([]));
           setAllQuestionDocs(saved.allQuestionDocs ?? Array(8).fill(""));

@@ -1,6 +1,7 @@
 const SESSION_ID_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 const DEFAULT_SESSION_ID_LENGTH = 6;
 const MAX_UNBIASED_BYTE = 252;
+const SESSION_ID_PATTERN = /^[A-Z0-9]{6}$/;
 
 export function generateSessionId(length = DEFAULT_SESSION_ID_LENGTH): string {
   const chars: string[] = [];
@@ -20,4 +21,12 @@ export function generateSessionId(length = DEFAULT_SESSION_ID_LENGTH): string {
   }
 
   return chars.join("");
+}
+
+export function normalizeSessionId(value: string): string {
+  return value.trim().toUpperCase();
+}
+
+export function isValidSessionId(value: string): boolean {
+  return SESSION_ID_PATTERN.test(value);
 }

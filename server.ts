@@ -914,10 +914,10 @@ COMPLETION-RATE SCORING -- THIS IS MANDATORY AND OVERRIDES QUALITY-ONLY SCORING:
     }
 
     const userText = `${systemPrompt}\n\nTranscript so far:\n${printedHistory}\n\nYour task: ${conclude
-        ? "Finalize and output the assessment block."
-        : roundOnCurrentQ >= 2
-          ? `The student just answered Q${effectiveQIdx + 1} a second time. Acknowledge in one sentence, then ask Q${nextQIdx + 1}: "${nextQ?.questionText || ""}"`
-          : `The student just answered Q${effectiveQIdx + 1} for the first time. Ask one targeted follow-up.`
+      ? "Finalize and output the assessment block."
+      : roundOnCurrentQ >= 2
+        ? `The student just answered Q${effectiveQIdx + 1} a second time. Acknowledge in one sentence, then ask Q${nextQIdx + 1}: "${nextQ?.questionText || ""}"`
+        : `The student just answered Q${effectiveQIdx + 1} for the first time. Ask one targeted follow-up.`
       }`;
 
     let aiResponseText =
@@ -958,8 +958,7 @@ async function initServer() {
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
-    app.get("*", (_req, res) => res.sendFile(path.join(distPath, "index.html")));
+    app.use("/", express.static(distPath));
   }
 
   server.listen(PORT, "0.0.0.0", () => {

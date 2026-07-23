@@ -1,6 +1,7 @@
 import { jsPDF } from "jspdf";
 import { AlertTriangle, CheckCircle2, FileText, Layers, RefreshCw, ShieldCheck, XCircle } from "lucide-react";
 import { AIPreparedAssessment, ChatMessage } from "../types";
+import { toSafePngDataUrl } from "../utils/dataUrl";
 
 interface DiagramEvalResult {
   overallScore: number;
@@ -455,7 +456,7 @@ export default function ReportViewer({
                       </p>
                     )}
                     <img
-                      src={snap.startsWith("data:") ? snap : `data:image/png;base64,${snap}`}
+                      src={toSafePngDataUrl(snap)}
                       alt={`Whiteboard snapshot for question ${idx + 1}`}
                       className="w-full rounded-lg border border-white/10"
                     />

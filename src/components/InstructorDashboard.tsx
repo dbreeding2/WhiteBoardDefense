@@ -1,5 +1,6 @@
 import { CheckCircle, ChevronRight, Clock, Copy, Layers, Monitor, Plus, Users } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
+import { toSafePngDataUrl } from "../utils/dataUrl";
 
 interface SessionMeta {
   sessionId: string;
@@ -203,7 +204,7 @@ export default function InstructorDashboard({ wsRef, onNewSession }: InstructorD
                   {/* Thumbnail */}
                   <div className="relative h-36 bg-[#080810] flex items-center justify-center overflow-hidden border-b border-white/5">
                     {session.thumbnail ? (
-                      <img src={session.thumbnail} alt={`Latest whiteboard for session ${session.sessionId}`} className="w-full h-full object-contain" />
+                      <img src={toSafePngDataUrl(session.thumbnail)} alt={`Latest whiteboard for session ${session.sessionId}`} className="w-full h-full object-contain" />
                     ) : (
                       <div className="flex flex-col items-center gap-2 text-white/20">
                         <Layers className="w-8 h-8" aria-hidden="true" />

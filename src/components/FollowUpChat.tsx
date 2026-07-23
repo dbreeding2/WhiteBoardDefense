@@ -1,6 +1,7 @@
 import { AlertTriangle, ChevronRight, Cpu, Mic, MicOff, Send, Sparkles, User } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import { AIPreparedAssessment, ChatMessage, DefenseQuestion } from "../types";
+import { toSafePngDataUrl } from "../utils/dataUrl";
 
 interface FollowUpChatProps {
   sessionId: string;
@@ -453,7 +454,7 @@ export default function FollowUpChat({
                 <div key={idx} className="bg-black border border-white/10 rounded-lg p-1.5 shadow-sm text-left">
                   <div className="aspect-[4/3] bg-[#141414] rounded-md overflow-hidden border border-white/5 flex items-center justify-center relative">
                     <img
-                      src={snap}
+                      src={toSafePngDataUrl(snap)}
                       alt={`Snapshot Question ${idx + 1}`}
                       className="object-contain w-full h-full"
                     />

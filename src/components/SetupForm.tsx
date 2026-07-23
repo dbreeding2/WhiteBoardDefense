@@ -110,10 +110,10 @@ async function extractPptxText(file: File): Promise<string> {
 
   for (let i = 0; i < slideFiles.length; i++) {
     const xmlContent = await zip.files[slideFiles[i]].async("string");
-    // Strip XML tags and extract text nodes
-    const textMatches = xmlContent.match(/<a:t[^>]*>([^<]+)<\/a:t>/g) || [];
+    // Extract text directly from <a:t> nodes via capture group
+    const textMatches = Array.from(xmlContent.matchAll(/<a:t[^>]*>([^<]+)<\/a:t>/g));
     const slideText = textMatches
-      .map((match) => match.replace(/<[^>]+>/g, "").trim())
+      .map((match) => (match[1] || "").trim())
       .filter((t) => t.length > 0)
       .join(" ");
     if (slideText.trim()) {

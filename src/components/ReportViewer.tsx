@@ -1,7 +1,6 @@
-import React from "react";
-import { AIPreparedAssessment, ChatMessage } from "../types";
 import { jsPDF } from "jspdf";
-import { Award, AlertTriangle, FileText, CheckCircle2, XCircle, RefreshCw, Layers, ShieldCheck } from "lucide-react";
+import { AlertTriangle, CheckCircle2, FileText, Layers, RefreshCw, ShieldCheck, XCircle } from "lucide-react";
+import { AIPreparedAssessment, ChatMessage } from "../types";
 
 interface DiagramEvalResult {
   overallScore: number;
@@ -38,7 +37,7 @@ export default function ReportViewer({
   onResetSession,
   activityType,
 }: ReportViewerProps) {
-  
+
   const activityLabels: Record<string, string> = {
     paper: "Research Paper",
     project: "Project Codebase",
@@ -46,7 +45,7 @@ export default function ReportViewer({
     article: "Article/Manuscript",
   };
   const activeLabel = activityType ? (activityLabels[activityType] || "Material") : "Resource";
-  
+
   // High-fidelity jsPDF document compiler
   const handleExportPDF = () => {
     const doc = new jsPDF({
@@ -68,7 +67,7 @@ export default function ReportViewer({
     doc.setFontSize(18);
     doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
     doc.text("WHITEBOARD DEFENSE INTEGRITY REPORT", 105, currentY, { align: "center" });
-    
+
     currentY += 8;
     doc.setFont("Helvetica", "normal");
     doc.setFontSize(10);
@@ -93,7 +92,7 @@ export default function ReportViewer({
     doc.setFontSize(10);
     doc.text(`Student Name: ${studentName || "N/A"}`, 15, currentY);
     doc.text(`Course Code: ${courseName || "N/A"}`, 110, currentY);
-    
+
     currentY += 6;
     doc.text(`${activeLabel} Title:`, 15, currentY);
     currentY += 5;
@@ -163,7 +162,7 @@ export default function ReportViewer({
     doc.text("Strong Concept Verifications:", 15, currentY);
     currentY += 5;
     doc.setFont("Helvetica", "normal");
-    
+
     if (assessment.keyFindings && assessment.keyFindings.length > 0) {
       assessment.keyFindings.forEach((f) => {
         const wrappedf = doc.splitTextToSize(`v ${f}`, 175);
@@ -203,7 +202,7 @@ export default function ReportViewer({
     doc.setFont("Helvetica", "bold");
     doc.setFontSize(14);
     doc.text("APPENDIX A: STUDENT WHITEBOARD DERIVATIONS", 15, currentY);
-    
+
     currentY += 10;
     doc.setFontSize(9);
     doc.setFont("Helvetica", "normal");
@@ -274,7 +273,7 @@ export default function ReportViewer({
               const parsed = JSON.parse(docData);
               writtenText = parsed.text || "";
             }
-          } catch {}
+          } catch { }
           if (writtenText) {
             const wrapped = doc.splitTextToSize(writtenText, 80);
             const preview = wrapped.slice(0, 8); // max 8 lines
@@ -466,21 +465,19 @@ export default function ReportViewer({
                     {evalResult ? (
                       <>
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-bold font-mono ${
-                            evalResult.overallScore >= 8 ? "bg-emerald-950/40 text-emerald-400 border border-emerald-900/50"
+                          <span className={`px-2.5 py-1 rounded-full text-xs font-bold font-mono ${evalResult.overallScore >= 8 ? "bg-emerald-950/40 text-emerald-400 border border-emerald-900/50"
                             : evalResult.overallScore >= 5 ? "bg-amber-950/40 text-amber-400 border border-amber-900/50"
-                            : "bg-red-950/40 text-red-400 border border-red-900/50"
-                          }`}>
+                              : "bg-red-950/40 text-red-400 border border-red-900/50"
+                            }`}>
                             {evalResult.overallScore}/10
                           </span>
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-bold font-mono ${
-                            evalResult.integritySignal === "low" ? "bg-emerald-950/40 text-emerald-400 border border-emerald-900/50"
+                          <span className={`px-2.5 py-1 rounded-full text-xs font-bold font-mono ${evalResult.integritySignal === "low" ? "bg-emerald-950/40 text-emerald-400 border border-emerald-900/50"
                             : evalResult.integritySignal === "medium" ? "bg-amber-950/40 text-amber-400 border border-amber-900/50"
-                            : "bg-red-950/40 text-red-400 border border-red-900/50"
-                          }`}>
+                              : "bg-red-950/40 text-red-400 border border-red-900/50"
+                            }`}>
                             {evalResult.integritySignal === "low" ? "Low concern"
                               : evalResult.integritySignal === "medium" ? "Review needed"
-                              : "Flagged"}
+                                : "Flagged"}
                           </span>
                         </div>
                         <div className="space-y-1.5">

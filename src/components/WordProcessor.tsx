@@ -1,17 +1,11 @@
-import React, { useState, useEffect, useRef } from "react";
-import { 
-  Type, 
-  Plus, 
-  Trash2, 
-  TableProperties, 
-  Heading1, 
-  Heading2, 
-  List, 
-  BookOpen, 
-  Sparkles,
-  RefreshCw,
-  FileCheck
+import {
+  BookOpen,
+  FileCheck,
+  Plus,
+  TableProperties,
+  Trash2
 } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
 
 interface WordProcessorProps {
   sessionId: string;
@@ -233,7 +227,7 @@ export default function WordProcessor({
         ctx.fillText(currentLine, startX, currentY);
         currentLine = words[i];
         currentY += lineHeight;
-        
+
         // Safety bounds
         if (currentY > 340) break;
       } else {
@@ -279,14 +273,14 @@ export default function WordProcessor({
       // Header Texts
       ctx.fillStyle = "#34D399"; // Mint accents for headers
       ctx.font = "bold 12px sans-serif";
-      
+
       for (let c = 0; c < numCols; c++) {
         const headerText = table.headers[c] || "";
         const cx = startX + c * colWidth;
-        
+
         // Draw Header text
         ctx.fillText(headerText, cx + cellPadding, currentY + rowHeight / 2 + 4);
-        
+
         // Draw vertical column divider
         if (c > 0) {
           ctx.beginPath();
@@ -307,7 +301,7 @@ export default function WordProcessor({
 
       // Draw spreadsheet Rows
       ctx.font = "12px sans-serif";
-      
+
       table.rows.forEach((row, rIdx) => {
         // Alternating background rows for high readability
         ctx.fillStyle = rIdx % 2 === 0 ? "rgba(255, 255, 255, 0.02)" : "rgba(255, 255, 255, 0.05)";
@@ -533,7 +527,7 @@ export default function WordProcessor({
 
   return (
     <div className="flex flex-col h-full bg-[#0d0d11] rounded-xl shadow-lg border border-white/5 overflow-hidden">
-      
+
       {/* Exporter canvas - hidden representation for multi-modal image export */}
       <canvas ref={canvasRef} className="hidden" />
 
@@ -604,7 +598,7 @@ export default function WordProcessor({
               <label className="text-[10px] uppercase font-bold tracking-widest text-[#94A3B8] font-mono block flex items-center gap-1">
                 <TableProperties className="w-3.5 h-3.5 text-indigo-400" /> Part 2: Comparison & Proof Matrix (Grid)
               </label>
-              
+
               {!isInstructor && (
                 <div className="flex items-center gap-1.5">
                   <button
@@ -716,8 +710,8 @@ export default function WordProcessor({
             <div className="space-y-1">
               <h4 className="text-xs font-bold text-white/70 uppercase font-mono tracking-wider">No Comparative Table Active</h4>
               <p className="text-[11px] text-white/40 max-w-sm mx-auto">
-                {isInstructor 
-                  ? "The candidate answered using text only. No comparative proof matrix active for this question." 
+                {isInstructor
+                  ? "The candidate answered using text only. No comparative proof matrix active for this question."
                   : "Adding a structured comparison matrix table can help committee members judge mathematical constraints or results."}
               </p>
             </div>

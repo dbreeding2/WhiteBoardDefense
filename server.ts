@@ -1,9 +1,9 @@
+import dotenv from "dotenv";
 import express from "express";
 import http from "http";
 import path from "path";
-import { WebSocketServer, WebSocket } from "ws";
-import dotenv from "dotenv";
 import { createServer as createViteServer } from "vite";
+import { WebSocket, WebSocketServer } from "ws";
 
 dotenv.config();
 
@@ -17,14 +17,14 @@ app.use(express.urlencoded({ extended: true, limit: "100mb" }));
 // --- AI Provider Configuration ------------------------------------------------
 const AI_PROVIDER = (process.env.AI_PROVIDER || "openai").toLowerCase();
 
-const OPENAI_API_KEY  = process.env.OPENAI_API_KEY  || "";
-const OPENAI_MODEL    = process.env.OPENAI_MODEL    || "gpt-4o-mini";
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
+const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
 
-const CLAUDE_API_KEY  = process.env.CLAUDE_API_KEY  || "";
-const CLAUDE_MODEL    = process.env.CLAUDE_MODEL    || "claude-haiku-4-5-20251001";
+const CLAUDE_API_KEY = process.env.CLAUDE_API_KEY || "";
+const CLAUDE_MODEL = process.env.CLAUDE_MODEL || "claude-haiku-4-5-20251001";
 
-const GEMINI_API_KEY  = process.env.GEMINI_API_KEY  || "";
-const GEMINI_MODEL    = process.env.GEMINI_MODEL    || "gemini-2.0-flash";
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash";
 
 const activeModel = AI_PROVIDER === "claude" ? CLAUDE_MODEL : AI_PROVIDER === "gemini" ? GEMINI_MODEL : OPENAI_MODEL;
 console.log(`[AI] Provider: ${AI_PROVIDER.toUpperCase()} | Model: ${activeModel}`);
@@ -480,10 +480,10 @@ Return a JSON object with a "questions" array containing EXACTLY 8 objects. Each
     const questions = Array.isArray(parsed)
       ? parsed
       : Array.isArray(parsed.questions)
-      ? parsed.questions
-      : Array.isArray(parsed.items)
-      ? parsed.items
-      : Object.values(parsed).find((v) => Array.isArray(v)) || [];
+        ? parsed.questions
+        : Array.isArray(parsed.items)
+          ? parsed.items
+          : Object.values(parsed).find((v) => Array.isArray(v)) || [];
     return res.json({ questions });
   } catch (err: any) {
     console.error("Error generating questions:", err);
@@ -509,9 +509,9 @@ app.post("/api/defense/analyze-metadata", async (req, res) => {
     const passiveWords = (pastedText.match(/\b(is|was|were|been|are|be)\b\s+\w+ed\b/gi) || []).length;
     const estimatedPassiveVoice = Math.min(45, Math.max(10, Math.round((passiveWords / (wordSplit.length || 1)) * 300)));
     const candidates = (Array.from(new Set(pastedText.match(/\b[A-Z][a-zA-Z]{3,}\b/g) || [])) as string[])
-      .filter(w => !["The","This","That","Abstract","Introduction","Methodology","Conclusion","Figure","Table","Slide"].includes(w))
+      .filter(w => !["The", "This", "That", "Abstract", "Introduction", "Methodology", "Conclusion", "Figure", "Table", "Slide"].includes(w))
       .slice(0, 5);
-    while (candidates.length < 4) candidates.push("Core Concept","Technical Term","Key Topic","Main Theme");
+    while (candidates.length < 4) candidates.push("Core Concept", "Technical Term", "Key Topic", "Main Theme");
     const sentences = (pastedText.match(/[.!?]+/g) || []).length || 1;
     const wordsPerSentence = Math.round(wordCount / sentences);
     let readabilityScore = Math.max(20, Math.min(85, 120 - Math.round(wordsPerSentence * 1.5)));
@@ -532,7 +532,7 @@ app.post("/api/defense/analyze-metadata", async (req, res) => {
       const hasConclusion = /conclusion|summary|takeaway|next step/i.test(pastedText);
       standardsCompliance = {
         hasObjective, hasVisuals, hasConclusion,
-        formatCheckScore: Math.round(((hasObjective?1:0)+(hasVisuals?1:0)+(hasConclusion?1:0)+(wordCount>200?1:0))*25),
+        formatCheckScore: Math.round(((hasObjective ? 1 : 0) + (hasVisuals ? 1 : 0) + (hasConclusion ? 1 : 0) + (wordCount > 200 ? 1 : 0)) * 25),
         checks: [
           { label: "Clear Objective / Overview", status: hasObjective ? "PRESENT" : "MISSING LABEL" },
           { label: "Visual / Diagram Support", status: hasVisuals ? "PRESENT" : "MISSING" },
@@ -545,7 +545,7 @@ app.post("/api/defense/analyze-metadata", async (req, res) => {
       const hasTestPlan = /test|validation|verification|qa|quality/i.test(pastedText);
       standardsCompliance = {
         hasRequirements, hasArchitecture, hasTestPlan,
-        formatCheckScore: Math.round(((hasRequirements?1:0)+(hasArchitecture?1:0)+(hasTestPlan?1:0)+(wordCount>400?1:0))*25),
+        formatCheckScore: Math.round(((hasRequirements ? 1 : 0) + (hasArchitecture ? 1 : 0) + (hasTestPlan ? 1 : 0) + (wordCount > 400 ? 1 : 0)) * 25),
         checks: [
           { label: "Requirements / Specifications", status: hasRequirements ? "PRESENT" : "MISSING" },
           { label: "Architecture / Design", status: hasArchitecture ? "PRESENT" : "THIN SECTION" },
@@ -560,7 +560,7 @@ app.post("/api/defense/analyze-metadata", async (req, res) => {
       const hasRefs = /references|bibliography|citations|\[\d+\]/i.test(pastedText);
       standardsCompliance = {
         hasAbstract, hasMethodology: hasMeth, hasCitations: hasRefs,
-        formatCheckScore: Math.round(((hasAbstract?1:0)+(hasIntro?1:0)+(hasMeth?1:0)+(hasRefs?1:0))*25),
+        formatCheckScore: Math.round(((hasAbstract ? 1 : 0) + (hasIntro ? 1 : 0) + (hasMeth ? 1 : 0) + (hasRefs ? 1 : 0)) * 25),
         checks: [
           { label: "Abstract / Intent Summary", status: hasAbstract ? "PRESENT" : "MISSING LABEL" },
           { label: "Methodology & Constraints", status: hasMeth ? "PRESENT" : "THIN SECTION" },
@@ -825,8 +825,8 @@ app.post("/api/defense/chat", async (req, res) => {
 
     const questionsContext = questions && Array.isArray(questions) && questions.length > 0
       ? "\n--- ALL DEFENSE QUESTIONS ---\n" +
-        questions.map((q: any) => `Q${q.num} [${q.focusConcept || "N/A"}]: ${q.questionText}`).join("\n") +
-        "\n-----------------------------\n"
+      questions.map((q: any) => `Q${q.num} [${q.focusConcept || "N/A"}]: ${q.questionText}`).join("\n") +
+      "\n-----------------------------\n"
       : "";
 
     const systemPrompt = `
@@ -900,7 +900,7 @@ COMPLETION-RATE SCORING -- THIS IS MANDATORY AND OVERRIDES QUALITY-ONLY SCORING:
 - Total defense questions in this session: ${totalQuestions}
 - Questions the student actually answered with substantive content: ${questionsAnswered} out of ${totalQuestions}
 - Unanswered questions: ${unansweredQuestionTexts.length > 0 ? unansweredQuestionTexts.join(" | ") : "none -- all questions were answered"}
-- The overallScore MUST reflect BOTH the quality of what was answered AND the fraction of questions actually completed. A student who answers only ${questionsAnswered} of ${totalQuestions} questions perfectly cannot score above approximately ${Math.round((questionsAnswered/totalQuestions)*100 + 10)} -- do NOT inflate this based on quality alone.
+- The overallScore MUST reflect BOTH the quality of what was answered AND the fraction of questions actually completed. A student who answers only ${questionsAnswered} of ${totalQuestions} questions perfectly cannot score above approximately ${Math.round((questionsAnswered / totalQuestions) * 100 + 10)} -- do NOT inflate this based on quality alone.
 - Exact formula to follow: overallScore = round((${questionsAnswered} / ${totalQuestions}) x quality_score_0_to_100), where quality_score reflects only the answered questions. Add at most 5-10 points of partial credit for effort, never more.
 - If ${questionsAnswered} out of ${totalQuestions} is less than half, the recommendedGrade MUST be in the C/D/F range regardless of how good the few answered responses were -- an incomplete defense cannot earn an A or B grade.
 - gapsIdentified MUST explicitly list each unanswered question topic from the "Unanswered questions" list above, not just a vague "needs more detail" note.
@@ -913,13 +913,12 @@ COMPLETION-RATE SCORING -- THIS IS MANDATORY AND OVERRIDES QUALITY-ONLY SCORING:
       });
     }
 
-    const userText = `${systemPrompt}\n\nTranscript so far:\n${printedHistory}\n\nYour task: ${
-      conclude
+    const userText = `${systemPrompt}\n\nTranscript so far:\n${printedHistory}\n\nYour task: ${conclude
         ? "Finalize and output the assessment block."
         : roundOnCurrentQ >= 2
           ? `The student just answered Q${effectiveQIdx + 1} a second time. Acknowledge in one sentence, then ask Q${nextQIdx + 1}: "${nextQ?.questionText || ""}"`
           : `The student just answered Q${effectiveQIdx + 1} for the first time. Ask one targeted follow-up.`
-    }`;
+      }`;
 
     let aiResponseText =
       base64Images.length > 0

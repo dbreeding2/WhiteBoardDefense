@@ -1,10 +1,10 @@
+import { AlertCircle, Award, ChevronLeft, ChevronRight, FileText, Monitor, Network, Palette, Share2, Users } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 import React, { useEffect, useState } from "react";
 import { DefenseQuestion, DrawingStroke } from "../types";
-import { QRCodeSVG } from "qrcode.react";
+import DiagramBuilder from "./DiagramBuilder";
 import Whiteboard from "./Whiteboard";
 import WordProcessor from "./WordProcessor";
-import DiagramBuilder from "./DiagramBuilder";
-import { ChevronLeft, ChevronRight, Share2, Award, Users, AlertCircle, Palette, FileText, Network, Monitor } from "lucide-react";
 
 interface DefenseSessionProps {
   sessionId: string;
@@ -52,7 +52,7 @@ export default function DefenseSession({
   allDocs,
   onDocChange,
   allDiagrams = [],
-  onDiagramChange = () => {},
+  onDiagramChange = () => { },
   activeTab,
   onActiveTabChange,
   onSaveSnapshot,
@@ -78,7 +78,7 @@ export default function DefenseSession({
     fetch("/api/server-info")
       .then(r => r.json())
       .then(data => { if (data.baseUrl) setServerBaseUrl(data.baseUrl); })
-      .catch(() => {}); // fall back to window.location.origin
+      .catch(() => { }); // fall back to window.location.origin
   }, []);
 
   const shareUrl = `${serverBaseUrl}/?sessionId=${sessionId}&role=student`;
@@ -259,15 +259,13 @@ export default function DefenseSession({
                     onClick={() => {
                       changeSlide(idx);
                     }}
-                    className={`w-full text-left p-2.5 rounded-lg border text-xs font-sans transition flex items-center gap-2 ${
-                      isActive
-                        ? "bg-indigo-600/10 border-indigo-500/40 text-indigo-400 font-semibold"
-                        : "bg-black/30 border-white/5 hover:border-white/20 text-white/70 hover:text-white"
-                    }`}
+                    className={`w-full text-left p-2.5 rounded-lg border text-xs font-sans transition flex items-center gap-2 ${isActive
+                      ? "bg-indigo-600/10 border-indigo-500/40 text-indigo-400 font-semibold"
+                      : "bg-black/30 border-white/5 hover:border-white/20 text-white/70 hover:text-white"
+                      }`}
                   >
-                    <span className={`w-5 h-5 rounded flex items-center justify-center font-mono font-bold text-[10px] shrink-0 ${
-                      isActive ? "bg-indigo-600/35 text-indigo-300 border border-indigo-500/30" : "bg-white/5 text-white/40"
-                    }`}>
+                    <span className={`w-5 h-5 rounded flex items-center justify-center font-mono font-bold text-[10px] shrink-0 ${isActive ? "bg-indigo-600/35 text-indigo-300 border border-indigo-500/30" : "bg-white/5 text-white/40"
+                      }`}>
                       {q.num}
                     </span>
                     <span className="truncate grow">{q.focusConcept}</span>
@@ -292,7 +290,7 @@ export default function DefenseSession({
           {/* Sync mode toast for students */}
           {syncToast && (
             <div className="bg-indigo-950/60 border border-indigo-500/30 rounded-xl px-4 py-2.5 flex items-center gap-2 text-xs text-indigo-300">
-              <i className="ti ti-lock" style={{fontSize:"13px"}} />
+              <i className="ti ti-lock" style={{ fontSize: "13px" }} />
               Instructor controls navigation
             </div>
           )}
@@ -360,20 +358,19 @@ export default function DefenseSession({
           <div className="flex border-b border-white/5 gap-0.5 select-none pt-1">
             {(
               [
-                { id: "diagram", label: "Diagram Board",   Icon: Network },
-                { id: "text",    label: "Word Processor",  Icon: FileText },
-                { id: "draw",    label: "Drawing Board",   Icon: Palette },
+                { id: "diagram", label: "Diagram Board", Icon: Network },
+                { id: "text", label: "Word Processor", Icon: FileText },
+                { id: "draw", label: "Drawing Board", Icon: Palette },
               ] as const
             ).map(({ id, label, Icon }) => (
               <button
                 key={id}
                 type="button"
                 onClick={() => handleTabChange(id)}
-                className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold font-mono uppercase tracking-wider transition border-t-2 rounded-t-lg ${
-                  activeTab === id
-                    ? "bg-[#0d0d11] border-indigo-500 text-[#818CF8]"
-                    : "bg-transparent border-transparent text-white/40 hover:text-white"
-                }`}
+                className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold font-mono uppercase tracking-wider transition border-t-2 rounded-t-lg ${activeTab === id
+                  ? "bg-[#0d0d11] border-indigo-500 text-[#818CF8]"
+                  : "bg-transparent border-transparent text-white/40 hover:text-white"
+                  }`}
               >
                 <Icon className="w-3.5 h-3.5" />
                 {label}
@@ -393,7 +390,7 @@ export default function DefenseSession({
                 role={role}
                 strokes={currentQuestionStrokes}
                 onStrokesChange={(updated) => onStrokesChange(currentQuestionIndex, updated)}
-                onCaptureSnapshot={(b64, evaluation) => onSaveSnapshot(currentQuestionIndex, b64, evaluation)}
+                onCaptureSnapshot={(b64) => onSaveSnapshot(currentQuestionIndex, b64)}
                 wsRef={wsRef}
               />
             )}

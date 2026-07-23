@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
-import { Monitor, Users, Clock, ChevronRight, Plus, QrCode, Copy, CheckCircle, AlertCircle, Loader2, BookOpen, Layers } from "lucide-react";
+import { CheckCircle, ChevronRight, Clock, Copy, Layers, Monitor, Plus, Users } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
 
 interface SessionMeta {
   sessionId: string;
@@ -21,11 +21,11 @@ interface InstructorDashboardProps {
 }
 
 const STAGE_LABELS: Record<string, { label: string; color: string }> = {
-  setup:    { label: "Setting Up",    color: "text-white/40 bg-white/5 border-white/10" },
-  session:  { label: "Whiteboard",    color: "text-indigo-400 bg-indigo-500/10 border-indigo-500/30" },
-  followup: { label: "Oral Defense",  color: "text-amber-400 bg-amber-500/10 border-amber-500/30" },
-  report:   { label: "Report Ready",  color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30" },
-  complete: { label: "Complete",      color: "text-white/30 bg-white/5 border-white/10" },
+  setup: { label: "Setting Up", color: "text-white/40 bg-white/5 border-white/10" },
+  session: { label: "Whiteboard", color: "text-indigo-400 bg-indigo-500/10 border-indigo-500/30" },
+  followup: { label: "Oral Defense", color: "text-amber-400 bg-amber-500/10 border-amber-500/30" },
+  report: { label: "Report Ready", color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30" },
+  complete: { label: "Complete", color: "text-white/30 bg-white/5 border-white/10" },
 };
 
 function elapsed(ts: number): string {
@@ -56,7 +56,7 @@ export default function InstructorDashboard({ wsRef, onNewSession }: InstructorD
     fetch("/api/server-info")
       .then(r => r.json())
       .then(data => { if (data.baseUrl) setServerBaseUrl(data.baseUrl); })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   // Connect dedicated dashboard WebSocket
@@ -76,7 +76,7 @@ export default function InstructorDashboard({ wsRef, onNewSession }: InstructorD
         if (msg.type === "dashboard_update") {
           setSessions(msg.sessions || []);
         }
-      } catch {}
+      } catch { }
     };
 
     ws.onclose = () => setConnected(false);
@@ -93,7 +93,7 @@ export default function InstructorDashboard({ wsRef, onNewSession }: InstructorD
           const data = await res.json();
           if (data.sessions?.length > 0) setSessions(data.sessions);
         }
-      } catch {}
+      } catch { }
     };
     fetchSessions();
     const interval = setInterval(fetchSessions, 10000);
@@ -285,7 +285,7 @@ export default function InstructorDashboard({ wsRef, onNewSession }: InstructorD
                       onClick={() => {
                         if (window.confirm(`Remove session ${session.sessionId} from the dashboard?`)) {
                           setSessions(prev => prev.filter(s => s.sessionId !== session.sessionId));
-                          fetch(`/api/defense/session-questions/${session.sessionId}`, { method: "DELETE" }).catch(() => {});
+                          fetch(`/api/defense/session-questions/${session.sessionId}`, { method: "DELETE" }).catch(() => { });
                         }
                       }}
                       aria-label={`Remove session ${session.sessionId} from dashboard`}

@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
-import { Network, Trash2, RefreshCw, CheckCircle, AlertTriangle, ChevronDown } from "lucide-react";
+import { AlertTriangle, CheckCircle, ChevronDown, Network, RefreshCw, Trash2 } from "lucide-react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
 // ??? Types ????????????????????????????????????????????????????????????????????
 
@@ -86,94 +86,94 @@ const HANDLE_HIT = 14;
 
 const DEFS: Record<string, NodeDef> = {
   // ── Networking ──────────────────────────────────────────────────────────────
-  router:   { icon: "ti-router",           label: "Router",      color: "#818CF8", fill: "#1e1b4b", stroke: "#4338ca" },
-  firewall: { icon: "ti-shield",           label: "Firewall",    color: "#f87171", fill: "#450a0a", stroke: "#991b1b" },
-  switch:   { icon: "ti-switch",           label: "Switch",      color: "#a78bfa", fill: "#2e1065", stroke: "#6d28d9" },
-  vlan:     { icon: "ti-circles-relation", label: "VLAN",        color: "#34d399", fill: "#022c22", stroke: "#065f46" },
-  server:   { icon: "ti-server",           label: "Server",      color: "#9ca3af", fill: "#111827", stroke: "#374151" },
-  cloud:    { icon: "ti-cloud",            label: "Cloud",       color: "#60a5fa", fill: "#0c1a2e", stroke: "#1e40af" },
-  endpoint: { icon: "ti-device-laptop",   label: "Endpoint",    color: "#d1d5db", fill: "#1f2937", stroke: "#4b5563" },
-  wifi:     { icon: "ti-wifi",             label: "Wi-Fi AP",    color: "#c4b5fd", fill: "#1e1b4b", stroke: "#5b21b6" },
-  isp:      { icon: "ti-world",            label: "ISP",         color: "#fbbf24", fill: "#1c0a00", stroke: "#92400e" },
-  noc:      { icon: "ti-eye",              label: "NOC",         color: "#6ee7b7", fill: "#022c22", stroke: "#059669" },
-  siem:     { icon: "ti-activity",         label: "SIEM",        color: "#fca5a5", fill: "#450a0a", stroke: "#b91c1c" },
-  shield:   { icon: "ti-shield-check",     label: "Safeguard",   color: "#fb923c", fill: "#431407", stroke: "#c2410c" },
-  lock:     { icon: "ti-lock",             label: "Access Ctrl", color: "#a78bfa", fill: "#1e1b4b", stroke: "#7c3aed" },
-  dmz:      { icon: "ti-hexagon",          label: "DMZ",         color: "#f472b6", fill: "#2d0a1f", stroke: "#9d174d" },
+  router: { icon: "ti-router", label: "Router", color: "#818CF8", fill: "#1e1b4b", stroke: "#4338ca" },
+  firewall: { icon: "ti-shield", label: "Firewall", color: "#f87171", fill: "#450a0a", stroke: "#991b1b" },
+  switch: { icon: "ti-switch", label: "Switch", color: "#a78bfa", fill: "#2e1065", stroke: "#6d28d9" },
+  vlan: { icon: "ti-circles-relation", label: "VLAN", color: "#34d399", fill: "#022c22", stroke: "#065f46" },
+  server: { icon: "ti-server", label: "Server", color: "#9ca3af", fill: "#111827", stroke: "#374151" },
+  cloud: { icon: "ti-cloud", label: "Cloud", color: "#60a5fa", fill: "#0c1a2e", stroke: "#1e40af" },
+  endpoint: { icon: "ti-device-laptop", label: "Endpoint", color: "#d1d5db", fill: "#1f2937", stroke: "#4b5563" },
+  wifi: { icon: "ti-wifi", label: "Wi-Fi AP", color: "#c4b5fd", fill: "#1e1b4b", stroke: "#5b21b6" },
+  isp: { icon: "ti-world", label: "ISP", color: "#fbbf24", fill: "#1c0a00", stroke: "#92400e" },
+  noc: { icon: "ti-eye", label: "NOC", color: "#6ee7b7", fill: "#022c22", stroke: "#059669" },
+  siem: { icon: "ti-activity", label: "SIEM", color: "#fca5a5", fill: "#450a0a", stroke: "#b91c1c" },
+  shield: { icon: "ti-shield-check", label: "Safeguard", color: "#fb923c", fill: "#431407", stroke: "#c2410c" },
+  lock: { icon: "ti-lock", label: "Access Ctrl", color: "#a78bfa", fill: "#1e1b4b", stroke: "#7c3aed" },
+  dmz: { icon: "ti-hexagon", label: "DMZ", color: "#f472b6", fill: "#2d0a1f", stroke: "#9d174d" },
   // ── Software / Code ─────────────────────────────────────────────────────────
-  func:     { icon: "ti-code",             label: "Function",    color: "#818CF8", fill: "#1e1b4b", stroke: "#4338ca" },
-  input:    { icon: "ti-arrow-bar-to-down",label: "Input",       color: "#34d399", fill: "#022c22", stroke: "#065f46" },
-  output:   { icon: "ti-arrow-bar-up",     label: "Output",      color: "#60a5fa", fill: "#0c1a2e", stroke: "#1e40af" },
-  process:  { icon: "ti-cpu",             label: "Process",     color: "#9ca3af", fill: "#111827", stroke: "#374151" },
-  decision: { icon: "ti-diamond",          label: "Decision",    color: "#fbbf24", fill: "#1c0a00", stroke: "#92400e" },
-  loop:     { icon: "ti-refresh",          label: "Loop",        color: "#c4b5fd", fill: "#1e1b4b", stroke: "#5b21b6" },
-  database: { icon: "ti-database",         label: "Database",    color: "#f87171", fill: "#450a0a", stroke: "#991b1b" },
-  api:      { icon: "ti-api",              label: "API Call",    color: "#fb923c", fill: "#431407", stroke: "#c2410c" },
-  file:     { icon: "ti-file",             label: "File/IO",     color: "#6ee7b7", fill: "#022c22", stroke: "#059669" },
-  class:    { icon: "ti-package",          label: "Class",       color: "#f472b6", fill: "#2d0a1f", stroke: "#9d174d" },
-  module:   { icon: "ti-puzzle",           label: "Module",      color: "#a78bfa", fill: "#2e1065", stroke: "#6d28d9" },
-  start:    { icon: "ti-player-play",      label: "Start/End",   color: "#34d399", fill: "#022c22", stroke: "#065f46" },
+  func: { icon: "ti-code", label: "Function", color: "#818CF8", fill: "#1e1b4b", stroke: "#4338ca" },
+  input: { icon: "ti-arrow-bar-to-down", label: "Input", color: "#34d399", fill: "#022c22", stroke: "#065f46" },
+  output: { icon: "ti-arrow-bar-up", label: "Output", color: "#60a5fa", fill: "#0c1a2e", stroke: "#1e40af" },
+  process: { icon: "ti-cpu", label: "Process", color: "#9ca3af", fill: "#111827", stroke: "#374151" },
+  decision: { icon: "ti-diamond", label: "Decision", color: "#fbbf24", fill: "#1c0a00", stroke: "#92400e" },
+  loop: { icon: "ti-refresh", label: "Loop", color: "#c4b5fd", fill: "#1e1b4b", stroke: "#5b21b6" },
+  database: { icon: "ti-database", label: "Database", color: "#f87171", fill: "#450a0a", stroke: "#991b1b" },
+  api: { icon: "ti-api", label: "API Call", color: "#fb923c", fill: "#431407", stroke: "#c2410c" },
+  file: { icon: "ti-file", label: "File/IO", color: "#6ee7b7", fill: "#022c22", stroke: "#059669" },
+  class: { icon: "ti-package", label: "Class", color: "#f472b6", fill: "#2d0a1f", stroke: "#9d174d" },
+  module: { icon: "ti-puzzle", label: "Module", color: "#a78bfa", fill: "#2e1065", stroke: "#6d28d9" },
+  start: { icon: "ti-player-play", label: "Start/End", color: "#34d399", fill: "#022c22", stroke: "#065f46" },
   // ── Business / Workflow ──────────────────────────────────────────────────────
-  biz_start:    { icon: "ti-player-play",    label: "Trigger",     color: "#34d399", fill: "#022c22", stroke: "#065f46" },
-  biz_task:     { icon: "ti-checkbox",       label: "Task",        color: "#818CF8", fill: "#1e1b4b", stroke: "#4338ca" },
-  biz_decision: { icon: "ti-diamond",        label: "Decision",    color: "#fbbf24", fill: "#1c0a00", stroke: "#92400e" },
-  biz_approval: { icon: "ti-circle-check",   label: "Approval",    color: "#fb923c", fill: "#431407", stroke: "#c2410c" },
-  biz_notify:   { icon: "ti-bell",           label: "Notify",      color: "#60a5fa", fill: "#0c1a2e", stroke: "#1e40af" },
-  biz_data:     { icon: "ti-database",       label: "Data Store",  color: "#9ca3af", fill: "#111827", stroke: "#374151" },
-  biz_role:     { icon: "ti-user",           label: "Role/Dept",   color: "#c4b5fd", fill: "#1e1b4b", stroke: "#5b21b6" },
-  biz_end:      { icon: "ti-flag",           label: "Outcome",     color: "#f472b6", fill: "#2d0a1f", stroke: "#9d174d" },
+  biz_start: { icon: "ti-player-play", label: "Trigger", color: "#34d399", fill: "#022c22", stroke: "#065f46" },
+  biz_task: { icon: "ti-checkbox", label: "Task", color: "#818CF8", fill: "#1e1b4b", stroke: "#4338ca" },
+  biz_decision: { icon: "ti-diamond", label: "Decision", color: "#fbbf24", fill: "#1c0a00", stroke: "#92400e" },
+  biz_approval: { icon: "ti-circle-check", label: "Approval", color: "#fb923c", fill: "#431407", stroke: "#c2410c" },
+  biz_notify: { icon: "ti-bell", label: "Notify", color: "#60a5fa", fill: "#0c1a2e", stroke: "#1e40af" },
+  biz_data: { icon: "ti-database", label: "Data Store", color: "#9ca3af", fill: "#111827", stroke: "#374151" },
+  biz_role: { icon: "ti-user", label: "Role/Dept", color: "#c4b5fd", fill: "#1e1b4b", stroke: "#5b21b6" },
+  biz_end: { icon: "ti-flag", label: "Outcome", color: "#f472b6", fill: "#2d0a1f", stroke: "#9d174d" },
   // ── UX / Design ─────────────────────────────────────────────────────────────
-  ux_screen:    { icon: "ti-device-desktop", label: "Screen",      color: "#818CF8", fill: "#1e1b4b", stroke: "#4338ca" },
-  ux_action:    { icon: "ti-cursor-text",    label: "User Action", color: "#34d399", fill: "#022c22", stroke: "#065f46" },
-  ux_decision:  { icon: "ti-diamond",        label: "Decision",    color: "#fbbf24", fill: "#1c0a00", stroke: "#92400e" },
-  ux_input:     { icon: "ti-forms",          label: "Form/Input",  color: "#60a5fa", fill: "#0c1a2e", stroke: "#1e40af" },
-  ux_feedback:  { icon: "ti-message",        label: "Feedback",    color: "#fb923c", fill: "#431407", stroke: "#c2410c" },
-  ux_nav:       { icon: "ti-arrow-right",    label: "Navigate",    color: "#c4b5fd", fill: "#1e1b4b", stroke: "#5b21b6" },
-  ux_modal:     { icon: "ti-layout-navbar",  label: "Modal/Pop-up",color: "#f472b6", fill: "#2d0a1f", stroke: "#9d174d" },
-  ux_end:       { icon: "ti-flag",           label: "End State",   color: "#6ee7b7", fill: "#022c22", stroke: "#059669" },
-  model:    { icon: "ti-brain",            label: "Model",       color: "#818CF8", fill: "#1e1b4b", stroke: "#4338ca" },
-  dataset:  { icon: "ti-table",            label: "Dataset",     color: "#60a5fa", fill: "#0c1a2e", stroke: "#1e40af" },
-  pipeline: { icon: "ti-git-branch",       label: "Pipeline",    color: "#fbbf24", fill: "#1c0a00", stroke: "#92400e" },
-  layer:    { icon: "ti-stack",            label: "Layer",       color: "#c4b5fd", fill: "#1e1b4b", stroke: "#5b21b6" },
+  ux_screen: { icon: "ti-device-desktop", label: "Screen", color: "#818CF8", fill: "#1e1b4b", stroke: "#4338ca" },
+  ux_action: { icon: "ti-cursor-text", label: "User Action", color: "#34d399", fill: "#022c22", stroke: "#065f46" },
+  ux_decision: { icon: "ti-diamond", label: "Decision", color: "#fbbf24", fill: "#1c0a00", stroke: "#92400e" },
+  ux_input: { icon: "ti-forms", label: "Form/Input", color: "#60a5fa", fill: "#0c1a2e", stroke: "#1e40af" },
+  ux_feedback: { icon: "ti-message", label: "Feedback", color: "#fb923c", fill: "#431407", stroke: "#c2410c" },
+  ux_nav: { icon: "ti-arrow-right", label: "Navigate", color: "#c4b5fd", fill: "#1e1b4b", stroke: "#5b21b6" },
+  ux_modal: { icon: "ti-layout-navbar", label: "Modal/Pop-up", color: "#f472b6", fill: "#2d0a1f", stroke: "#9d174d" },
+  ux_end: { icon: "ti-flag", label: "End State", color: "#6ee7b7", fill: "#022c22", stroke: "#059669" },
+  model: { icon: "ti-brain", label: "Model", color: "#818CF8", fill: "#1e1b4b", stroke: "#4338ca" },
+  dataset: { icon: "ti-table", label: "Dataset", color: "#60a5fa", fill: "#0c1a2e", stroke: "#1e40af" },
+  pipeline: { icon: "ti-git-branch", label: "Pipeline", color: "#fbbf24", fill: "#1c0a00", stroke: "#92400e" },
+  layer: { icon: "ti-stack", label: "Layer", color: "#c4b5fd", fill: "#1e1b4b", stroke: "#5b21b6" },
   // ── UML ──────────────────────────────────────────────────────────────────────
-  uml_class:    { icon: "ti-package",        label: "Class",       color: "#818CF8", fill: "#1e1b4b", stroke: "#4338ca" },
-  uml_interface:{ icon: "ti-brackets",       label: "Interface",   color: "#60a5fa", fill: "#0c1a2e", stroke: "#1e40af" },
-  uml_abstract: { icon: "ti-layer-difference",label: "Abstract",   color: "#c4b5fd", fill: "#1e1b4b", stroke: "#5b21b6" },
-  uml_inherit:  { icon: "ti-arrow-up",       label: "Inherits",    color: "#34d399", fill: "#022c22", stroke: "#065f46" },
-  uml_compose:  { icon: "ti-diamond",        label: "Composition", color: "#fbbf24", fill: "#1c0a00", stroke: "#92400e" },
-  uml_aggregate:{ icon: "ti-diamond",        label: "Aggregation", color: "#fb923c", fill: "#431407", stroke: "#c2410c" },
-  uml_depend:   { icon: "ti-arrow-right",    label: "Dependency",  color: "#9ca3af", fill: "#111827", stroke: "#374151" },
-  uml_method:   { icon: "ti-code",           label: "Method",      color: "#f472b6", fill: "#2d0a1f", stroke: "#9d174d" },
-  uml_attr:     { icon: "ti-tag",            label: "Attribute",   color: "#6ee7b7", fill: "#022c22", stroke: "#059669" },
-  uml_note:     { icon: "ti-notes",          label: "Note",        color: "#9ca3af", fill: "#111827", stroke: "#374151" },
+  uml_class: { icon: "ti-package", label: "Class", color: "#818CF8", fill: "#1e1b4b", stroke: "#4338ca" },
+  uml_interface: { icon: "ti-brackets", label: "Interface", color: "#60a5fa", fill: "#0c1a2e", stroke: "#1e40af" },
+  uml_abstract: { icon: "ti-layer-difference", label: "Abstract", color: "#c4b5fd", fill: "#1e1b4b", stroke: "#5b21b6" },
+  uml_inherit: { icon: "ti-arrow-up", label: "Inherits", color: "#34d399", fill: "#022c22", stroke: "#065f46" },
+  uml_compose: { icon: "ti-diamond", label: "Composition", color: "#fbbf24", fill: "#1c0a00", stroke: "#92400e" },
+  uml_aggregate: { icon: "ti-diamond", label: "Aggregation", color: "#fb923c", fill: "#431407", stroke: "#c2410c" },
+  uml_depend: { icon: "ti-arrow-right", label: "Dependency", color: "#9ca3af", fill: "#111827", stroke: "#374151" },
+  uml_method: { icon: "ti-code", label: "Method", color: "#f472b6", fill: "#2d0a1f", stroke: "#9d174d" },
+  uml_attr: { icon: "ti-tag", label: "Attribute", color: "#6ee7b7", fill: "#022c22", stroke: "#059669" },
+  uml_note: { icon: "ti-notes", label: "Note", color: "#9ca3af", fill: "#111827", stroke: "#374151" },
   // ── State / State Transition ─────────────────────────────────────────────────
-  st_initial:   { icon: "ti-player-play",    label: "Initial",     color: "#34d399", fill: "#022c22", stroke: "#065f46" },
-  st_state:     { icon: "ti-square",         label: "State",       color: "#818CF8", fill: "#1e1b4b", stroke: "#4338ca" },
-  st_final:     { icon: "ti-flag",           label: "Final",       color: "#f87171", fill: "#450a0a", stroke: "#991b1b" },
-  st_transition:{ icon: "ti-arrow-right",    label: "Transition",  color: "#60a5fa", fill: "#0c1a2e", stroke: "#1e40af" },
-  st_event:     { icon: "ti-bolt",           label: "Event/Guard", color: "#fbbf24", fill: "#1c0a00", stroke: "#92400e" },
-  st_action:    { icon: "ti-player-record",  label: "Action",      color: "#c4b5fd", fill: "#1e1b4b", stroke: "#5b21b6" },
-  st_choice:    { icon: "ti-diamond",        label: "Choice",      color: "#fb923c", fill: "#431407", stroke: "#c2410c" },
-  st_fork:      { icon: "ti-git-branch",     label: "Fork/Join",   color: "#f472b6", fill: "#2d0a1f", stroke: "#9d174d" },
-  db_entity:   { icon: "ti-table",          label: "Entity",      color: "#818CF8", fill: "#1e1b4b", stroke: "#4338ca" },
-  db_attr:     { icon: "ti-tag",            label: "Attribute",   color: "#9ca3af", fill: "#111827", stroke: "#374151" },
-  db_key:      { icon: "ti-key",            label: "Primary Key", color: "#fbbf24", fill: "#1c0a00", stroke: "#92400e" },
-  db_fk:       { icon: "ti-link",           label: "Foreign Key", color: "#fb923c", fill: "#431407", stroke: "#c2410c" },
-  db_table:    { icon: "ti-layout-rows",    label: "Table",       color: "#60a5fa", fill: "#0c1a2e", stroke: "#1e40af" },
-  db_view:     { icon: "ti-eye",            label: "View",        color: "#34d399", fill: "#022c22", stroke: "#065f46" },
-  db_proc:     { icon: "ti-code",           label: "Procedure",   color: "#c4b5fd", fill: "#1e1b4b", stroke: "#5b21b6" },
-  db_index:    { icon: "ti-list-search",    label: "Index",       color: "#f472b6", fill: "#2d0a1f", stroke: "#9d174d" },
-  db_rel_one:  { icon: "ti-arrow-right",    label: "One-to-One",  color: "#6ee7b7", fill: "#022c22", stroke: "#059669" },
-  db_rel_many: { icon: "ti-arrows-split",   label: "One-to-Many", color: "#f87171", fill: "#450a0a", stroke: "#991b1b" },
+  st_initial: { icon: "ti-player-play", label: "Initial", color: "#34d399", fill: "#022c22", stroke: "#065f46" },
+  st_state: { icon: "ti-square", label: "State", color: "#818CF8", fill: "#1e1b4b", stroke: "#4338ca" },
+  st_final: { icon: "ti-flag", label: "Final", color: "#f87171", fill: "#450a0a", stroke: "#991b1b" },
+  st_transition: { icon: "ti-arrow-right", label: "Transition", color: "#60a5fa", fill: "#0c1a2e", stroke: "#1e40af" },
+  st_event: { icon: "ti-bolt", label: "Event/Guard", color: "#fbbf24", fill: "#1c0a00", stroke: "#92400e" },
+  st_action: { icon: "ti-player-record", label: "Action", color: "#c4b5fd", fill: "#1e1b4b", stroke: "#5b21b6" },
+  st_choice: { icon: "ti-diamond", label: "Choice", color: "#fb923c", fill: "#431407", stroke: "#c2410c" },
+  st_fork: { icon: "ti-git-branch", label: "Fork/Join", color: "#f472b6", fill: "#2d0a1f", stroke: "#9d174d" },
+  db_entity: { icon: "ti-table", label: "Entity", color: "#818CF8", fill: "#1e1b4b", stroke: "#4338ca" },
+  db_attr: { icon: "ti-tag", label: "Attribute", color: "#9ca3af", fill: "#111827", stroke: "#374151" },
+  db_key: { icon: "ti-key", label: "Primary Key", color: "#fbbf24", fill: "#1c0a00", stroke: "#92400e" },
+  db_fk: { icon: "ti-link", label: "Foreign Key", color: "#fb923c", fill: "#431407", stroke: "#c2410c" },
+  db_table: { icon: "ti-layout-rows", label: "Table", color: "#60a5fa", fill: "#0c1a2e", stroke: "#1e40af" },
+  db_view: { icon: "ti-eye", label: "View", color: "#34d399", fill: "#022c22", stroke: "#065f46" },
+  db_proc: { icon: "ti-code", label: "Procedure", color: "#c4b5fd", fill: "#1e1b4b", stroke: "#5b21b6" },
+  db_index: { icon: "ti-list-search", label: "Index", color: "#f472b6", fill: "#2d0a1f", stroke: "#9d174d" },
+  db_rel_one: { icon: "ti-arrow-right", label: "One-to-One", color: "#6ee7b7", fill: "#022c22", stroke: "#059669" },
+  db_rel_many: { icon: "ti-arrows-split", label: "One-to-Many", color: "#f87171", fill: "#450a0a", stroke: "#991b1b" },
 };
 
 const ROLE_COLORS: Record<string, string> = {
   enforcement: "#ef4444",
-  trusted:     "#10b981",
-  untrusted:   "#f59e0b",
-  dmz:         "#8b5cf6",
-  management:  "#3b82f6",
-  encrypted:   "#06b6d4",
+  trusted: "#10b981",
+  untrusted: "#f59e0b",
+  dmz: "#8b5cf6",
+  management: "#3b82f6",
+  encrypted: "#06b6d4",
 };
 
 const SCENARIO_PALETTES: Array<{
@@ -181,123 +181,123 @@ const SCENARIO_PALETTES: Array<{
   components: string[];
   hint: string;
 }> = [
-  // ── Networking ──────────────────────────────────────────────────────────────
-  {
-    keywords: ["vlan", "segmentation", "segment", "network", "subnet"],
-    components: ["firewall", "router", "switch", "vlan", "vlan", "vlan", "endpoint", "server", "wifi", "lock", "noc", "siem", "cloud", "isp"],
-    hint: "Show at least three VLANs, place the firewall at the enforcement boundary, label each VLAN.",
-  },
-  {
-    keywords: ["failover", "redundan", "ospf", "isp", "wan", "backup"],
-    components: ["router", "router", "firewall", "cloud", "isp", "isp"],
-    hint: "Show primary and backup ISP paths, dual edge routers, and the cloud destination.",
-  },
-  {
-    keywords: ["hipaa", "safeguard", "compliance", "phy", "admin", "technical"],
-    components: ["shield", "server", "lock", "endpoint", "noc", "cloud"],
-    hint: "Map all three HIPAA safeguard categories (administrative, physical, technical) to components.",
-  },
-  {
-    keywords: ["noc", "siem", "monitor", "alert", "incident response", "log management"],
-    components: ["noc", "siem", "firewall", "switch", "router", "server"],
-    hint: "Connect log sources to the SIEM, then show the NOC analyst connection and alert path.",
-  },
-  {
-    keywords: ["acl", "access control", "firewall rule", "packet filter"],
-    components: ["router", "firewall", "lock", "server", "endpoint", "dmz"],
-    hint: "Show ACL placement at the routing boundary and which traffic is permitted vs denied.",
-  },
-  // ── Software / Code ─────────────────────────────────────────────────────────
-  {
-    keywords: ["function", "flow", "algorithm", "python", "java", "code", "program", "script", "method"],
-    components: ["start", "input", "process", "decision", "loop", "output", "func", "file"],
-    hint: "Sketch a flowchart: Start -> Input -> Process -> Decision/Loop -> Output. Label each step.",
-  },
-  {
-    keywords: ["class", "object", "oop", "inheritance", "polymorphism", "encapsulation"],
-    components: ["class", "class", "module", "func", "database", "api"],
-    hint: "Show class relationships, inheritance arrows, and key methods or attributes.",
-  },
-  {
-    keywords: ["api", "rest", "http", "endpoint", "request", "response", "web service"],
-    components: ["input", "api", "process", "database", "output", "cloud", "server"],
-    hint: "Show the request/response flow: Client -> API endpoint -> Processing -> Database -> Response.",
-  },
-  {
-    keywords: ["database", "sql", "query", "schema", "table", "crud", "data model", "erd", "entity", "relational"],
-    components: ["db_entity", "db_entity", "db_table", "db_key", "db_fk", "db_rel_one", "db_rel_many", "db_attr"],
-    hint: "Draw entities as boxes, add primary keys, connect with relationship lines (one-to-one or one-to-many).",
-  },
-  {
-    keywords: ["pipeline", "etl", "data flow", "transform", "extract", "load"],
-    components: ["input", "pipeline", "process", "process", "database", "output", "file"],
-    hint: "Show each pipeline stage: Extract -> Transform -> Load, with data sources and destinations.",
-  },
-  // ── Business / Workflow ──────────────────────────────────────────────────────
-  {
-    keywords: ["workflow", "business process", "bpmn", "approval", "operations", "procurement", "supply chain", "erp"],
-    components: ["biz_start", "biz_task", "biz_decision", "biz_approval", "biz_notify", "biz_end", "biz_data", "biz_role"],
-    hint: "Map the business process: trigger -> tasks -> decision gates -> approvals -> outcome.",
-  },
-  {
-    keywords: ["stakeholder", "swimlane", "department", "handoff", "escalation", "sla"],
-    components: ["biz_role", "biz_role", "biz_task", "biz_decision", "biz_approval", "biz_notify", "biz_end"],
-    hint: "Use swimlanes to show which department/role owns each step, and where handoffs occur.",
-  },
-  {
-    keywords: ["customer journey", "touchpoint", "experience", "crm", "sales", "marketing funnel"],
-    components: ["biz_start", "biz_task", "biz_decision", "biz_notify", "biz_data", "biz_end", "biz_role"],
-    hint: "Show each customer touchpoint in sequence, decision points, and conversion or drop-off outcomes.",
-  },
-  // ── UML ──────────────────────────────────────────────────────────────────────
-  {
-    keywords: ["uml", "class diagram", "inheritance", "polymorphism", "encapsulation", "interface", "abstract"],
-    components: ["uml_class", "uml_class", "uml_interface", "uml_abstract", "uml_inherit", "uml_compose", "uml_aggregate", "uml_depend"],
-    hint: "Draw classes with attributes and methods, connect with inheritance (open arrow), composition (filled diamond), or dependency (dashed arrow).",
-  },
-  {
-    keywords: ["sequence diagram", "use case", "actor", "message", "lifeline"],
-    components: ["uml_class", "uml_interface", "uml_method", "uml_depend", "uml_inherit", "uml_note"],
-    hint: "Show actors/objects as boxes, interactions as arrows, and add notes for constraints.",
-  },
-  // ── State / State Transition ─────────────────────────────────────────────────
-  {
-    keywords: ["state machine", "state diagram", "statechart", "fsm", "finite state", "state transition"],
-    components: ["st_initial", "st_state", "st_state", "st_state", "st_event", "st_action", "st_choice", "st_final"],
-    hint: "Start with Initial, connect States with labeled Transitions (event [guard] / action), end with Final.",
-  },
-  {
-    keywords: ["lifecycle", "status", "pending", "processing", "active", "idle", "complete", "workflow state"],
-    components: ["st_initial", "st_state", "st_state", "st_event", "st_transition", "st_choice", "st_fork", "st_final"],
-    hint: "Map each lifecycle status as a State, label each arrow with the event that triggers the transition.",
-  },
-  // ── UX / Design ─────────────────────────────────────────────────────────────
-  {
-    keywords: ["ux", "ui", "user interface", "wireframe", "prototype", "usability", "design", "interaction"],
-    components: ["ux_screen", "ux_action", "ux_decision", "ux_input", "ux_feedback", "ux_nav", "ux_modal", "ux_end"],
-    hint: "Sketch the user flow: screen states -> user actions -> system responses -> navigation paths.",
-  },
-  {
-    keywords: ["user flow", "navigation", "screen", "page", "modal", "form", "button", "click"],
-    components: ["ux_screen", "ux_nav", "ux_action", "ux_input", "ux_modal", "ux_feedback", "ux_decision", "ux_end"],
-    hint: "Map screen-to-screen navigation: show what happens on each user action and where they go next.",
-  },
-  {
-    keywords: ["heuristic", "accessibility", "wcag", "persona", "user research", "card sort"],
-    components: ["ux_screen", "ux_action", "ux_feedback", "ux_decision", "ux_input", "ux_end"],
-    hint: "Diagram the evaluation framework or research process and how findings map to design decisions.",
-  },
-  {
-    keywords: ["machine learning", "neural", "training", "model", "ai", "deep learning", "classification"],
-    components: ["dataset", "pipeline", "model", "layer", "layer", "output", "process"],
-    hint: "Show data ingestion, preprocessing, model layers, training loop, and output/evaluation.",
-  },
-  {
-    keywords: ["regression", "classification", "clustering", "feature", "predict"],
-    components: ["dataset", "process", "model", "decision", "output", "pipeline"],
-    hint: "Show feature engineering, model training, prediction pipeline, and evaluation metrics.",
-  },
-];
+    // ── Networking ──────────────────────────────────────────────────────────────
+    {
+      keywords: ["vlan", "segmentation", "segment", "network", "subnet"],
+      components: ["firewall", "router", "switch", "vlan", "vlan", "vlan", "endpoint", "server", "wifi", "lock", "noc", "siem", "cloud", "isp"],
+      hint: "Show at least three VLANs, place the firewall at the enforcement boundary, label each VLAN.",
+    },
+    {
+      keywords: ["failover", "redundan", "ospf", "isp", "wan", "backup"],
+      components: ["router", "router", "firewall", "cloud", "isp", "isp"],
+      hint: "Show primary and backup ISP paths, dual edge routers, and the cloud destination.",
+    },
+    {
+      keywords: ["hipaa", "safeguard", "compliance", "phy", "admin", "technical"],
+      components: ["shield", "server", "lock", "endpoint", "noc", "cloud"],
+      hint: "Map all three HIPAA safeguard categories (administrative, physical, technical) to components.",
+    },
+    {
+      keywords: ["noc", "siem", "monitor", "alert", "incident response", "log management"],
+      components: ["noc", "siem", "firewall", "switch", "router", "server"],
+      hint: "Connect log sources to the SIEM, then show the NOC analyst connection and alert path.",
+    },
+    {
+      keywords: ["acl", "access control", "firewall rule", "packet filter"],
+      components: ["router", "firewall", "lock", "server", "endpoint", "dmz"],
+      hint: "Show ACL placement at the routing boundary and which traffic is permitted vs denied.",
+    },
+    // ── Software / Code ─────────────────────────────────────────────────────────
+    {
+      keywords: ["function", "flow", "algorithm", "python", "java", "code", "program", "script", "method"],
+      components: ["start", "input", "process", "decision", "loop", "output", "func", "file"],
+      hint: "Sketch a flowchart: Start -> Input -> Process -> Decision/Loop -> Output. Label each step.",
+    },
+    {
+      keywords: ["class", "object", "oop", "inheritance", "polymorphism", "encapsulation"],
+      components: ["class", "class", "module", "func", "database", "api"],
+      hint: "Show class relationships, inheritance arrows, and key methods or attributes.",
+    },
+    {
+      keywords: ["api", "rest", "http", "endpoint", "request", "response", "web service"],
+      components: ["input", "api", "process", "database", "output", "cloud", "server"],
+      hint: "Show the request/response flow: Client -> API endpoint -> Processing -> Database -> Response.",
+    },
+    {
+      keywords: ["database", "sql", "query", "schema", "table", "crud", "data model", "erd", "entity", "relational"],
+      components: ["db_entity", "db_entity", "db_table", "db_key", "db_fk", "db_rel_one", "db_rel_many", "db_attr"],
+      hint: "Draw entities as boxes, add primary keys, connect with relationship lines (one-to-one or one-to-many).",
+    },
+    {
+      keywords: ["pipeline", "etl", "data flow", "transform", "extract", "load"],
+      components: ["input", "pipeline", "process", "process", "database", "output", "file"],
+      hint: "Show each pipeline stage: Extract -> Transform -> Load, with data sources and destinations.",
+    },
+    // ── Business / Workflow ──────────────────────────────────────────────────────
+    {
+      keywords: ["workflow", "business process", "bpmn", "approval", "operations", "procurement", "supply chain", "erp"],
+      components: ["biz_start", "biz_task", "biz_decision", "biz_approval", "biz_notify", "biz_end", "biz_data", "biz_role"],
+      hint: "Map the business process: trigger -> tasks -> decision gates -> approvals -> outcome.",
+    },
+    {
+      keywords: ["stakeholder", "swimlane", "department", "handoff", "escalation", "sla"],
+      components: ["biz_role", "biz_role", "biz_task", "biz_decision", "biz_approval", "biz_notify", "biz_end"],
+      hint: "Use swimlanes to show which department/role owns each step, and where handoffs occur.",
+    },
+    {
+      keywords: ["customer journey", "touchpoint", "experience", "crm", "sales", "marketing funnel"],
+      components: ["biz_start", "biz_task", "biz_decision", "biz_notify", "biz_data", "biz_end", "biz_role"],
+      hint: "Show each customer touchpoint in sequence, decision points, and conversion or drop-off outcomes.",
+    },
+    // ── UML ──────────────────────────────────────────────────────────────────────
+    {
+      keywords: ["uml", "class diagram", "inheritance", "polymorphism", "encapsulation", "interface", "abstract"],
+      components: ["uml_class", "uml_class", "uml_interface", "uml_abstract", "uml_inherit", "uml_compose", "uml_aggregate", "uml_depend"],
+      hint: "Draw classes with attributes and methods, connect with inheritance (open arrow), composition (filled diamond), or dependency (dashed arrow).",
+    },
+    {
+      keywords: ["sequence diagram", "use case", "actor", "message", "lifeline"],
+      components: ["uml_class", "uml_interface", "uml_method", "uml_depend", "uml_inherit", "uml_note"],
+      hint: "Show actors/objects as boxes, interactions as arrows, and add notes for constraints.",
+    },
+    // ── State / State Transition ─────────────────────────────────────────────────
+    {
+      keywords: ["state machine", "state diagram", "statechart", "fsm", "finite state", "state transition"],
+      components: ["st_initial", "st_state", "st_state", "st_state", "st_event", "st_action", "st_choice", "st_final"],
+      hint: "Start with Initial, connect States with labeled Transitions (event [guard] / action), end with Final.",
+    },
+    {
+      keywords: ["lifecycle", "status", "pending", "processing", "active", "idle", "complete", "workflow state"],
+      components: ["st_initial", "st_state", "st_state", "st_event", "st_transition", "st_choice", "st_fork", "st_final"],
+      hint: "Map each lifecycle status as a State, label each arrow with the event that triggers the transition.",
+    },
+    // ── UX / Design ─────────────────────────────────────────────────────────────
+    {
+      keywords: ["ux", "ui", "user interface", "wireframe", "prototype", "usability", "design", "interaction"],
+      components: ["ux_screen", "ux_action", "ux_decision", "ux_input", "ux_feedback", "ux_nav", "ux_modal", "ux_end"],
+      hint: "Sketch the user flow: screen states -> user actions -> system responses -> navigation paths.",
+    },
+    {
+      keywords: ["user flow", "navigation", "screen", "page", "modal", "form", "button", "click"],
+      components: ["ux_screen", "ux_nav", "ux_action", "ux_input", "ux_modal", "ux_feedback", "ux_decision", "ux_end"],
+      hint: "Map screen-to-screen navigation: show what happens on each user action and where they go next.",
+    },
+    {
+      keywords: ["heuristic", "accessibility", "wcag", "persona", "user research", "card sort"],
+      components: ["ux_screen", "ux_action", "ux_feedback", "ux_decision", "ux_input", "ux_end"],
+      hint: "Diagram the evaluation framework or research process and how findings map to design decisions.",
+    },
+    {
+      keywords: ["machine learning", "neural", "training", "model", "ai", "deep learning", "classification"],
+      components: ["dataset", "pipeline", "model", "layer", "layer", "output", "process"],
+      hint: "Show data ingestion, preprocessing, model layers, training loop, and output/evaluation.",
+    },
+    {
+      keywords: ["regression", "classification", "clustering", "feature", "predict"],
+      components: ["dataset", "process", "model", "decision", "output", "pipeline"],
+      hint: "Show feature engineering, model training, prediction pipeline, and evaluation metrics.",
+    },
+  ];
 
 const NETWORKING_COMPONENTS = ["router", "firewall", "switch", "server", "cloud", "endpoint", "vlan", "isp", "wifi", "lock", "noc", "siem", "dmz", "shield"];
 const SOFTWARE_COMPONENTS = ["start", "input", "process", "decision", "loop", "output", "func", "file", "database"];
@@ -562,17 +562,17 @@ export default function DiagramBuilder({
   // ?? Helpers ??????????????????????????????????????????????????????????????????
 
   const getHandles = (n: DiagramNode) => [
-    { side: "right",  x: n.x + NODE_W / 2, y: n.y },
-    { side: "left",   x: n.x - NODE_W / 2, y: n.y },
-    { side: "bottom", x: n.x,              y: n.y + NODE_H / 2 },
-    { side: "top",    x: n.x,              y: n.y - NODE_H / 2 },
+    { side: "right", x: n.x + NODE_W / 2, y: n.y },
+    { side: "left", x: n.x - NODE_W / 2, y: n.y },
+    { side: "bottom", x: n.x, y: n.y + NODE_H / 2 },
+    { side: "top", x: n.x, y: n.y - NODE_H / 2 },
   ];
 
   const getNodeAt = (x: number, y: number, nodeList: DiagramNode[]) => {
     for (let i = nodeList.length - 1; i >= 0; i--) {
       const n = nodeList[i];
       if (x >= n.x - NODE_W / 2 - 4 && x <= n.x + NODE_W / 2 + 4 &&
-          y >= n.y - NODE_H / 2 - 4 && y <= n.y + NODE_H / 2 + 4) return n;
+        y >= n.y - NODE_H / 2 - 4 && y <= n.y + NODE_H / 2 + 4) return n;
     }
     return null;
   };
@@ -989,7 +989,7 @@ export default function DiagramBuilder({
         if (t && t.id !== connDragRef.current.fromId) {
           const exists = edgesRef.current.find(
             (ed) => (ed.a === connDragRef.current!.fromId && ed.b === t.id) ||
-                    (ed.a === t.id && ed.b === connDragRef.current!.fromId)
+              (ed.a === t.id && ed.b === connDragRef.current!.fromId)
           );
           if (!exists) {
             const newEdge: DiagramEdge = { id: nextIdRef.current, a: connDragRef.current.fromId, b: t.id, label: "", dir: "one" };
@@ -1197,7 +1197,7 @@ Respond ONLY with valid JSON, no markdown fences:
         const data = await res.json();
         // Enforce exact score based on check results
         if (data.checks && Array.isArray(data.checks)) {
-          const passCount = data.checks.filter((c: {pass: boolean}) => c.pass).length;
+          const passCount = data.checks.filter((c: { pass: boolean }) => c.pass).length;
           if (passCount === 3) data.overallScore = 10;
           else if (passCount === 2) data.overallScore = 7;
           else if (passCount === 1) data.overallScore = 4;
@@ -1311,8 +1311,8 @@ Respond ONLY with valid JSON, no markdown fences:
               <label className="block text-[11px] text-white/40 mb-1 font-mono uppercase tracking-wider">Label</label>
               <input type="text" value={selectedGroup.label}
                 onChange={(e) => {
-                  setGroups(prev => prev.map(g => g.id === selectedGroup.id ? {...g, label: e.target.value} : g));
-                  setSelectedGroup(prev => prev ? {...prev, label: e.target.value} : null);
+                  setGroups(prev => prev.map(g => g.id === selectedGroup.id ? { ...g, label: e.target.value } : g));
+                  setSelectedGroup(prev => prev ? { ...prev, label: e.target.value } : null);
                 }}
                 className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500/50"
               />
@@ -1321,8 +1321,8 @@ Respond ONLY with valid JSON, no markdown fences:
               <label className="block text-[11px] text-white/40 mb-1 font-mono uppercase tracking-wider">Color</label>
               <select value={selectedGroup.color}
                 onChange={(e) => {
-                  setGroups(prev => prev.map(g => g.id === selectedGroup.id ? {...g, color: e.target.value} : g));
-                  setSelectedGroup(prev => prev ? {...prev, color: e.target.value} : null);
+                  setGroups(prev => prev.map(g => g.id === selectedGroup.id ? { ...g, color: e.target.value } : g));
+                  setSelectedGroup(prev => prev ? { ...prev, color: e.target.value } : null);
                 }}
                 className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500/50"
               >
@@ -1342,7 +1342,7 @@ Respond ONLY with valid JSON, no markdown fences:
               <input type="range" min="50" max="300" value={selectedGroup.rx}
                 onChange={(e) => {
                   const rx = Number(e.target.value);
-                  const updated = {...selectedGroup, rx};
+                  const updated = { ...selectedGroup, rx };
                   setGroups(prev => prev.map(g => g.id === selectedGroup.id ? updated : g));
                   setSelectedGroup(updated);
                 }}
@@ -1354,7 +1354,7 @@ Respond ONLY with valid JSON, no markdown fences:
               <input type="range" min="30" max="200" value={selectedGroup.ry}
                 onChange={(e) => {
                   const ry = Number(e.target.value);
-                  const updated = {...selectedGroup, ry};
+                  const updated = { ...selectedGroup, ry };
                   setGroups(prev => prev.map(g => g.id === selectedGroup.id ? updated : g));
                   setSelectedGroup(updated);
                 }}
@@ -1379,8 +1379,8 @@ Respond ONLY with valid JSON, no markdown fences:
               <label className="block text-[11px] text-white/40 mb-1 font-mono uppercase tracking-wider">Text</label>
               <input type="text" value={selectedLabel.text}
                 onChange={(e) => {
-                  setTextLabels(prev => prev.map(l => l.id === selectedLabel.id ? {...l, text: e.target.value} : l));
-                  setSelectedLabel(prev => prev ? {...prev, text: e.target.value} : null);
+                  setTextLabels(prev => prev.map(l => l.id === selectedLabel.id ? { ...l, text: e.target.value } : l));
+                  setSelectedLabel(prev => prev ? { ...prev, text: e.target.value } : null);
                 }}
                 className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500/50"
               />
@@ -1389,8 +1389,8 @@ Respond ONLY with valid JSON, no markdown fences:
               <label className="block text-[11px] text-white/40 mb-1 font-mono uppercase tracking-wider">Color</label>
               <select value={selectedLabel.color}
                 onChange={(e) => {
-                  setTextLabels(prev => prev.map(l => l.id === selectedLabel.id ? {...l, color: e.target.value} : l));
-                  setSelectedLabel(prev => prev ? {...prev, color: e.target.value} : null);
+                  setTextLabels(prev => prev.map(l => l.id === selectedLabel.id ? { ...l, color: e.target.value } : l));
+                  setSelectedLabel(prev => prev ? { ...prev, color: e.target.value } : null);
                 }}
                 className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500/50"
               >
@@ -1409,8 +1409,8 @@ Respond ONLY with valid JSON, no markdown fences:
             <input type="range" min="10" max="24" value={selectedLabel.fontSize}
               onChange={(e) => {
                 const fontSize = Number(e.target.value);
-                setTextLabels(prev => prev.map(l => l.id === selectedLabel.id ? {...l, fontSize} : l));
-                setSelectedLabel(prev => prev ? {...prev, fontSize} : null);
+                setTextLabels(prev => prev.map(l => l.id === selectedLabel.id ? { ...l, fontSize } : l));
+                setSelectedLabel(prev => prev ? { ...prev, fontSize } : null);
               }}
               className="w-full"
             />
@@ -1485,11 +1485,10 @@ Respond ONLY with valid JSON, no markdown fences:
                       key={d}
                       type="button"
                       onClick={() => setEdgeDir(d)}
-                      className={`flex-1 py-1.5 rounded-lg border text-xs font-bold font-mono uppercase tracking-wider transition ${
-                        selectedEdge.dir === d
-                          ? "bg-indigo-600/20 border-indigo-500/60 text-indigo-400"
-                          : "bg-black/30 border-white/10 text-white/40 hover:text-white/60"
-                      }`}
+                      className={`flex-1 py-1.5 rounded-lg border text-xs font-bold font-mono uppercase tracking-wider transition ${selectedEdge.dir === d
+                        ? "bg-indigo-600/20 border-indigo-500/60 text-indigo-400"
+                        : "bg-black/30 border-white/10 text-white/40 hover:text-white/60"
+                        }`}
                     >
                       {d === "one" ? "One-way" : "Both ways"}
                     </button>
@@ -1509,7 +1508,7 @@ Respond ONLY with valid JSON, no markdown fences:
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-indigo-500/30 text-indigo-400 text-xs font-bold hover:bg-indigo-950/40 transition"
           title="Add a dashed ellipse to group/enclose components"
         >
-          <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 2"><ellipse cx="6.5" cy="6.5" rx="6" ry="4"/></svg>
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 2"><ellipse cx="6.5" cy="6.5" rx="6" ry="4" /></svg>
           Add Group
         </button>
         <button
@@ -1575,18 +1574,16 @@ Respond ONLY with valid JSON, no markdown fences:
         <div className="bg-[#0d0d11] border border-white/5 rounded-xl p-4 space-y-3" role="region" aria-label="Diagram evaluation results" aria-live="polite">
           <div className="flex items-center gap-3 flex-wrap">
             <span className="text-sm font-bold text-white/60 uppercase tracking-widest font-mono">Diagram evaluation</span>
-            <span className={`ml-auto px-2.5 py-1 rounded-full text-sm font-bold font-mono ${
-              evaluation.overallScore >= 8 ? "bg-emerald-950/40 text-emerald-400 border border-emerald-900/50"
+            <span className={`ml-auto px-2.5 py-1 rounded-full text-sm font-bold font-mono ${evaluation.overallScore >= 8 ? "bg-emerald-950/40 text-emerald-400 border border-emerald-900/50"
               : evaluation.overallScore >= 6 ? "bg-amber-950/40 text-amber-400 border border-amber-900/50"
-              : "bg-red-950/40 text-red-400 border border-red-900/50"
-            }`}>
+                : "bg-red-950/40 text-red-400 border border-red-900/50"
+              }`}>
               <span aria-label={`Score: ${evaluation.overallScore} out of 10`}>{evaluation.overallScore}/10</span>
             </span>
-            <span className={`px-2.5 py-1 rounded-full text-sm font-bold font-mono ${
-              evaluation.integritySignal === "low" ? "bg-emerald-950/40 text-emerald-400 border border-emerald-900/50"
+            <span className={`px-2.5 py-1 rounded-full text-sm font-bold font-mono ${evaluation.integritySignal === "low" ? "bg-emerald-950/40 text-emerald-400 border border-emerald-900/50"
               : evaluation.integritySignal === "medium" ? "bg-amber-950/40 text-amber-400 border border-amber-900/50"
-              : "bg-red-950/40 text-red-400 border border-red-900/50"
-            }`}>
+                : "bg-red-950/40 text-red-400 border border-red-900/50"
+              }`}>
               {evaluation.integritySignal === "low"
                 ? <><CheckCircle className="w-3.5 h-3.5 inline mr-1" aria-hidden="true" />Low concern</>
                 : evaluation.integritySignal === "medium"

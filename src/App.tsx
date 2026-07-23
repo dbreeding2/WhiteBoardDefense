@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useRef } from "react";
-import { StudentMetadata, DefenseQuestion, DrawingStroke, ChatMessage, AIPreparedAssessment } from "./types";
-import SetupForm from "./components/SetupForm";
-import ReviewQuestions from "./components/ReviewQuestions";
+import { Monitor } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
 import DefenseSession from "./components/DefenseSession";
 import FollowUpChat from "./components/FollowUpChat";
-import ReportViewer from "./components/ReportViewer";
 import InstructorDashboard from "./components/InstructorDashboard";
-import { FileEdit, Sparkles, Monitor, AppWindow, UserCheck, ShieldAlert } from "lucide-react";
+import ReportViewer from "./components/ReportViewer";
+import ReviewQuestions from "./components/ReviewQuestions";
+import SetupForm from "./components/SetupForm";
+import { AIPreparedAssessment, ChatMessage, DefenseQuestion, DrawingStroke } from "./types";
 
 export default function App() {
   // Inject global accessibility CSS
@@ -35,7 +35,7 @@ export default function App() {
     return () => { document.head.removeChild(style); };
   }, []);
   const [currentStage, setCurrentStage] = useState<'dashboard' | 'setup' | 'review' | 'session' | 'followup' | 'report'>('setup');
-  
+
   // Student Metadata
   const [studentName, setStudentName] = useState("");
   const [paperTitle, setPaperTitle] = useState("");
@@ -116,8 +116,8 @@ export default function App() {
           if (data.questions && data.questions.length > 0) {
             setQuestions(data.questions);
             if (data.studentName) setStudentName(data.studentName);
-            if (data.paperTitle)  setPaperTitle(data.paperTitle);
-            if (data.courseName)  setCourseName(data.courseName);
+            if (data.paperTitle) setPaperTitle(data.paperTitle);
+            if (data.courseName) setCourseName(data.courseName);
             return; // Got real questions -- stop polling
           }
         }
@@ -147,7 +147,7 @@ export default function App() {
       setSessionId(urlSessionId);
       setRole(urlRole || 'student');
       setCurrentStage('session');
-      
+
       // Seed default placeholders for students scanning in a live session
       setStudentName("Student Candidate");
       setPaperTitle("Oral Defense Presentation");
@@ -335,8 +335,8 @@ export default function App() {
           // Instructor is broadcasting the real questions -- replace fallbacks
           setQuestions(data.questions);
           if (data.studentName) setStudentName(data.studentName);
-          if (data.paperTitle)  setPaperTitle(data.paperTitle);
-          if (data.courseName)  setCourseName(data.courseName);
+          if (data.paperTitle) setPaperTitle(data.paperTitle);
+          if (data.courseName) setCourseName(data.courseName);
         } else if (type === "request_sync") {
           // Student is requesting questions -- if we're the instructor and have questions, send them
           if (
@@ -502,11 +502,11 @@ export default function App() {
         prev.map((q) =>
           q.num === numToRegen
             ? {
-                ...q,
-                id: `q_regen_${Date.now()}`,
-                questionText: newQ.questionText,
-                focusConcept: newQ.focusConcept
-              }
+              ...q,
+              id: `q_regen_${Date.now()}`,
+              questionText: newQ.questionText,
+              focusConcept: newQ.focusConcept
+            }
             : q
         )
       );
@@ -516,9 +516,9 @@ export default function App() {
         prev.map((q) =>
           q.num === numToRegen
             ? {
-                ...q,
-                questionText: `[REFINED] ${q.questionText} (${notes})`,
-              }
+              ...q,
+              questionText: `[REFINED] ${q.questionText} (${notes})`,
+            }
             : q
         )
       );
@@ -663,7 +663,7 @@ export default function App() {
               </>
             )}
             <div className="h-10 w-[1px] bg-white/10"></div>
-            
+
             {/* Context Workspace Role Selector -- only shown during setup/review, hidden during live session */}
             {role !== 'student' && ['setup', 'review', 'dashboard'].includes(currentStage) ? (
               <div className="flex items-center bg-white/5 p-1 border border-white/10 rounded-lg">
@@ -704,20 +704,19 @@ export default function App() {
         <nav aria-label="Defense session phases" className="max-w-7xl mx-auto px-6 mt-4 flex items-center gap-2 overflow-x-auto py-1">
           <span className="text-xs uppercase tracking-widest text-[#E0E0E0]/30 mr-2" aria-hidden="true">Phase:</span>
           {[
-            { key: 'setup',    label: '1. Ingest' },
-            { key: 'review',   label: '2. Review' },
-            { key: 'session',  label: '3. Live Board' },
+            { key: 'setup', label: '1. Ingest' },
+            { key: 'review', label: '2. Review' },
+            { key: 'session', label: '3. Live Board' },
             { key: 'followup', label: assessmentMode === 'ai' ? '4. AI Inquiry' : '4. Oral Examination' },
-            { key: 'report',   label: '5. Final Evaluation' },
+            { key: 'report', label: '5. Final Evaluation' },
           ].map((phase, i, arr) => (
             <React.Fragment key={phase.key}>
               <span
                 aria-current={currentStage === phase.key ? 'step' : undefined}
-                className={`p-2 px-3 rounded-md text-sm border font-mono transition duration-200 ${
-                  currentStage === phase.key
-                    ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400 ring-1 ring-indigo-500/20'
-                    : 'border-white/5 bg-transparent text-[#E0E0E0]/40'
-                }`}
+                className={`p-2 px-3 rounded-md text-sm border font-mono transition duration-200 ${currentStage === phase.key
+                  ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400 ring-1 ring-indigo-500/20'
+                  : 'border-white/5 bg-transparent text-[#E0E0E0]/40'
+                  }`}
               >
                 {phase.label}
               </span>
@@ -745,7 +744,7 @@ export default function App() {
 
       {/* Primary body view switcher container */}
       <main id="main-content" className="flex-1 max-w-7xl w-full mx-auto p-6 md:p-8" role="main">
-        
+
         {/* Dynamic stage route router mapping */}
         {currentStage === 'dashboard' && (
           <InstructorDashboard
@@ -775,9 +774,9 @@ export default function App() {
         )}
 
         {currentStage === 'setup' && (
-          <SetupForm 
-            onSetupComplete={handleSetupComplete} 
-            isLoading={isLoading} 
+          <SetupForm
+            onSetupComplete={handleSetupComplete}
+            isLoading={isLoading}
             assessmentMode={assessmentMode}
             setAssessmentMode={setAssessmentMode}
           />

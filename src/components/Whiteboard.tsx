@@ -1,20 +1,19 @@
-import React, { useRef, useState, useEffect } from "react";
-import { DrawingStroke } from "../types";
-import { 
-  MousePointer, 
-  Square, 
-  Circle as CircleIcon, 
-  Type, 
-  Eraser, 
-  Undo2, 
-  Trash2, 
-  ArrowUpRight, 
-  PenTool, 
-  LayoutGrid,
-  ChevronUp,
+import {
+  ArrowUpRight,
   ChevronDown,
-  Info
+  ChevronUp,
+  Eraser,
+  Info,
+  LayoutGrid,
+  MousePointer,
+  PenTool,
+  Square,
+  Trash2,
+  Type,
+  Undo2
 } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { DrawingStroke } from "../types";
 
 interface WhiteboardProps {
   sessionId: string;
@@ -45,7 +44,7 @@ const wrapText = (ctx: CanvasRenderingContext2D, text: string, x: number, y: num
   const words = text.split(" ");
   let line = "";
   const lines: string[] = [];
-  
+
   for (let n = 0; n < words.length; n++) {
     const testLine = line + words[n] + " ";
     const metrics = ctx.measureText(testLine);
@@ -58,10 +57,10 @@ const wrapText = (ctx: CanvasRenderingContext2D, text: string, x: number, y: num
     }
   }
   lines.push(line);
-  
+
   const totalHeight = lines.length * lineHeight;
   let currentY = y - totalHeight / 2 + lineHeight / 2;
-  
+
   for (let i = 0; i < lines.length; i++) {
     ctx.fillText(lines[i].trim(), x, currentY);
     currentY += lineHeight;
@@ -83,7 +82,7 @@ export default function Whiteboard({
   const [color, setColor] = useState<string>("#4ADE80"); // Nice bright default: Mint Green
   const [lineWidth, setLineWidth] = useState<number>(3);
   const [showGrid, setShowGrid] = useState<boolean>(true);
-  
+
   // Interaction and selection states
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [interactionMode, setInteractionMode] = useState<"none" | "moving" | "resizing" | "moving_arrow_handle">("none");
@@ -91,7 +90,7 @@ export default function Whiteboard({
   const [dragStartMouse, setDragStartMouse] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [dragStartArrow, setDragStartArrow] = useState<{ x: number; y: number; x2: number; y2: number }>({ x: 0, y: 0, x2: 0, y2: 0 });
   const [arrowHandleType, setArrowHandleType] = useState<"start" | "end" | null>(null);
-  
+
   // Active temporary drawing states
   const [isDrawing, setIsDrawing] = useState(false);
   const [currentPoints, setCurrentPoints] = useState<{ x: number; y: number }[]>([]);
@@ -127,8 +126,8 @@ export default function Whiteboard({
       // Ignore key events in input forms, textareas, etc.
       const activeEl = document.activeElement;
       if (activeEl && (
-        activeEl.tagName === "INPUT" || 
-        activeEl.tagName === "TEXTAREA" || 
+        activeEl.tagName === "INPUT" ||
+        activeEl.tagName === "TEXTAREA" ||
         activeEl.getAttribute("contenteditable") === "true"
       )) {
         return;
@@ -231,14 +230,14 @@ export default function Whiteboard({
         ctx.strokeStyle = "#818CF8"; // Soft neon indigo
         ctx.lineWidth = 1.5;
         ctx.setLineDash([4, 4]);
-        
+
         if (s.type === "block" || s.type === "rectangle") {
           const sx = s.x || 0;
           const sy = s.y || 0;
           const sw = s.w || 120;
           const sh = s.h || 60;
           ctx.strokeRect(sx, sy, sw, sh);
-          
+
           // Draw solid resize handle square bottom right
           ctx.restore();
           ctx.save();
@@ -254,7 +253,7 @@ export default function Whiteboard({
           ctx.beginPath();
           ctx.arc(sx, sy, radius, 0, Math.PI * 2);
           ctx.stroke();
-          
+
           // Draw resize handle
           ctx.restore();
           ctx.save();
@@ -275,10 +274,10 @@ export default function Whiteboard({
           const sy = s.y || 0;
           const tx = s.x2 || 0;
           const ty = s.y2 || 0;
-          
+
           ctx.restore();
           ctx.save();
-          
+
           ctx.strokeStyle = "#818CF8";
           ctx.lineWidth = 1;
           ctx.setLineDash([3, 3]);
@@ -286,7 +285,7 @@ export default function Whiteboard({
           ctx.moveTo(sx, sy);
           ctx.lineTo(tx, ty);
           ctx.stroke();
-          
+
           // Start circle (Green anchor)
           ctx.fillStyle = "#34D399";
           ctx.beginPath();
@@ -294,7 +293,7 @@ export default function Whiteboard({
           ctx.fill();
           ctx.strokeStyle = "#FFFFFF";
           ctx.stroke();
-          
+
           // End circle (Red target)
           ctx.fillStyle = "#F87171";
           ctx.beginPath();
@@ -342,12 +341,12 @@ export default function Whiteboard({
         ctx.fillStyle = color;
         ctx.lineWidth = lineWidth || 2.5;
         const endPos = currentPoints[currentPoints.length - 1] || startPos;
-        
+
         ctx.beginPath();
         ctx.moveTo(startPos.x, startPos.y);
         ctx.lineTo(endPos.x, endPos.y);
         ctx.stroke();
-        
+
         const angle = Math.atan2(endPos.y - startPos.y, endPos.x - startPos.x);
         const arrowLength = 12;
         ctx.beginPath();
@@ -401,50 +400,50 @@ export default function Whiteboard({
       ctx.fillText(stroke.text, stroke.x, stroke.y);
     } else if (stroke.type === "block" && stroke.x !== undefined && stroke.y !== undefined && stroke.w !== undefined && stroke.h !== undefined) {
       ctx.save();
-      
+
       // Card subtle outer glow
       ctx.shadowColor = stroke.color;
       ctx.shadowBlur = 6;
       ctx.shadowOffsetX = 0;
       ctx.shadowOffsetY = 1;
-      
+
       ctx.fillStyle = "rgba(18, 18, 22, 0.95)";
       drawRoundedRect(ctx, stroke.x, stroke.y, stroke.w, stroke.h, 8);
       ctx.fill();
-      
+
       // Border outline
       ctx.shadowBlur = 0;
       ctx.strokeStyle = stroke.color;
       ctx.lineWidth = stroke.width || 2;
       ctx.stroke();
-      
+
       // Inline centered text wrapping inside block
       ctx.fillStyle = "#FFFFFF";
       ctx.font = "bold 12px sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      
+
       const tcX = stroke.x + stroke.w / 2;
       const tcY = stroke.y + stroke.h / 2;
       wrapText(ctx, stroke.text || "Box Block", tcX, tcY, stroke.w - 16, 16);
-      
+
       ctx.restore();
     } else if (stroke.type === "arrow" && stroke.x !== undefined && stroke.y !== undefined && stroke.x2 !== undefined && stroke.y2 !== undefined) {
       ctx.save();
       ctx.strokeStyle = stroke.color;
       ctx.fillStyle = stroke.color;
       ctx.lineWidth = stroke.width || 2.5;
-      
+
       // Main arrow body line
       ctx.beginPath();
       ctx.moveTo(stroke.x, stroke.y);
       ctx.lineTo(stroke.x2, stroke.y2);
       ctx.stroke();
-      
+
       // Direction arrowhead arithmetic
       const angle = Math.atan2(stroke.y2 - stroke.y, stroke.x2 - stroke.x);
       const arrowLength = 12;
-      
+
       ctx.beginPath();
       ctx.moveTo(stroke.x2, stroke.y2);
       ctx.lineTo(
@@ -457,7 +456,7 @@ export default function Whiteboard({
       );
       ctx.closePath();
       ctx.fill();
-      
+
       ctx.restore();
     }
   };
@@ -468,10 +467,10 @@ export default function Whiteboard({
     if (!canvas) return null;
 
     const rect = canvas.getBoundingClientRect();
-    
+
     let clientX = 0;
     let clientY = 0;
-    
+
     if ("touches" in e) {
       if (e.touches.length === 0) return null;
       clientX = e.touches[0].clientX;
@@ -493,7 +492,7 @@ export default function Whiteboard({
   // Collision checks
   const isNearResizeHandle = (s: DrawingStroke, mx: number, my: number) => {
     if (s.type !== "block" && s.type !== "rectangle" && s.type !== "circle") return false;
-    
+
     if (s.type === "circle") {
       const sx = s.x || 0;
       const sy = s.y || 0;
@@ -527,7 +526,7 @@ export default function Whiteboard({
         const right = sw < 0 ? sx : sx + sw;
         const top = sh < 0 ? sy + sh : sy;
         const bottom = sh < 0 ? sy : sy + sh;
-        
+
         if (mx >= left && mx <= right && my >= top && my <= bottom) {
           return s;
         }
@@ -553,15 +552,15 @@ export default function Whiteboard({
         const sy = s.y || 0;
         const tx = s.x2 || 0;
         const ty = s.y2 || 0;
-        
+
         const l2 = (tx - sx) ** 2 + (ty - sy) ** 2;
         if (l2 < 20) continue; // Skip too small arrows
-        
+
         let t = ((mx - sx) * (tx - sx) + (my - sy) * (ty - sy)) / l2;
         t = Math.max(0, Math.min(1, t));
         const projX = sx + t * (tx - sx);
         const projY = sy + t * (ty - sy);
-        
+
         const dist = Math.sqrt((mx - projX) ** 2 + (my - projY) ** 2);
         if (dist < 15) {
           return s;
@@ -573,7 +572,7 @@ export default function Whiteboard({
 
   const handleStart = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
     if (role === "instructor") return;
-    
+
     const coords = getCoordinates(e);
     if (!coords) return;
 
@@ -593,7 +592,7 @@ export default function Whiteboard({
             setDragStartMouse(coords);
             return;
           }
-          
+
           if (s.type === "arrow") {
             const startDist = Math.sqrt((coords.x - (s.x || 0)) ** 2 + (coords.y - (s.y || 0)) ** 2);
             const endDist = Math.sqrt((coords.x - (s.x2 || 0)) ** 2 + (coords.y - (s.y2 || 0)) ** 2);
@@ -652,7 +651,7 @@ export default function Whiteboard({
         h: bH,
         text: "Process Block"
       };
-      
+
       const updated = [...strokes, newB];
       setSelectedId(newB.id);
       setTool("select"); // Auto focus to move/editor select tool
@@ -940,7 +939,7 @@ export default function Whiteboard({
 
   return (
     <div className="flex flex-col h-full bg-[#0d0d11] rounded-xl shadow-lg border border-white/5 overflow-hidden">
-      
+
       {/* Upper toolbar controls */}
       <div className="flex flex-col border-b border-white/10">
         <div className="flex flex-wrap items-center justify-between gap-3 bg-black/40 p-3">
@@ -950,9 +949,8 @@ export default function Whiteboard({
                 <button
                   type="button"
                   onClick={() => { setTool("select"); setSelectedId(null); }}
-                  className={`p-1.5 px-2.5 rounded text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer ${
-                    tool === "select" ? "bg-indigo-600/25 text-indigo-400 border border-indigo-500/20" : "text-white/40 hover:text-white"
-                  }`}
+                  className={`p-1.5 px-2.5 rounded text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer ${tool === "select" ? "bg-indigo-600/25 text-indigo-400 border border-indigo-500/20" : "text-white/40 hover:text-white"
+                    }`}
                   title="Move and select element"
                 >
                   <MousePointer className="w-3.5 h-3.5" /> Pointer
@@ -960,9 +958,8 @@ export default function Whiteboard({
                 <button
                   type="button"
                   onClick={() => setTool("block")}
-                  className={`p-1.5 px-2.5 rounded text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer ${
-                    tool === "block" ? "bg-indigo-600/25 text-indigo-400 border border-indigo-500/20" : "text-white/40 hover:text-white"
-                  }`}
+                  className={`p-1.5 px-2.5 rounded text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer ${tool === "block" ? "bg-indigo-600/25 text-indigo-400 border border-indigo-500/20" : "text-white/40 hover:text-white"
+                    }`}
                   title="Place card block"
                 >
                   <Square className="w-3.5 h-3.5" /> Card
@@ -970,9 +967,8 @@ export default function Whiteboard({
                 <button
                   type="button"
                   onClick={() => setTool("arrow")}
-                  className={`p-1.5 px-2.5 rounded text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer ${
-                    tool === "arrow" ? "bg-indigo-600/25 text-indigo-400 border border-indigo-500/20" : "text-white/40 hover:text-white"
-                  }`}
+                  className={`p-1.5 px-2.5 rounded text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer ${tool === "arrow" ? "bg-indigo-600/25 text-indigo-400 border border-indigo-500/20" : "text-white/40 hover:text-white"
+                    }`}
                   title="Drag arrow mapping"
                 >
                   <ArrowUpRight className="w-3.5 h-3.5" /> Arrow
@@ -980,9 +976,8 @@ export default function Whiteboard({
                 <button
                   type="button"
                   onClick={() => setTool("text")}
-                  className={`p-1.5 px-2.5 rounded text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer ${
-                    tool === "text" ? "bg-indigo-600/25 text-indigo-400 border border-indigo-500/20" : "text-white/40 hover:text-white"
-                  }`}
+                  className={`p-1.5 px-2.5 rounded text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer ${tool === "text" ? "bg-indigo-600/25 text-indigo-400 border border-indigo-500/20" : "text-white/40 hover:text-white"
+                    }`}
                   title="Add text annotation"
                 >
                   <Type className="w-3.5 h-3.5" /> Text
@@ -990,9 +985,8 @@ export default function Whiteboard({
                 <button
                   type="button"
                   onClick={() => setTool("pencil")}
-                  className={`p-1.5 px-2.5 rounded text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer ${
-                    tool === "pencil" ? "bg-indigo-600/25 text-indigo-400 border border-indigo-500/20" : "text-white/40 hover:text-white"
-                  }`}
+                  className={`p-1.5 px-2.5 rounded text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer ${tool === "pencil" ? "bg-indigo-600/25 text-indigo-400 border border-indigo-500/20" : "text-white/40 hover:text-white"
+                    }`}
                   title="Draw freehand"
                 >
                   <PenTool className="w-3.5 h-3.5" /> Pen
@@ -1000,9 +994,8 @@ export default function Whiteboard({
                 <button
                   type="button"
                   onClick={() => setTool("eraser")}
-                  className={`p-1.5 px-2.5 rounded text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer ${
-                    tool === "eraser" ? "bg-red-500/10 text-red-400 border border-red-500/20" : "text-white/40 hover:text-white"
-                  }`}
+                  className={`p-1.5 px-2.5 rounded text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer ${tool === "eraser" ? "bg-red-500/10 text-red-400 border border-red-500/20" : "text-white/40 hover:text-white"
+                    }`}
                   title="Eraser tool"
                 >
                   <Eraser className="w-3.5 h-3.5" /> Eraser
@@ -1022,9 +1015,8 @@ export default function Whiteboard({
                     key={c.hex}
                     type="button"
                     onClick={() => setColor(c.hex)}
-                    className={`w-5 h-5 rounded-full border transition hover:scale-110 cursor-pointer ${
-                      color === c.hex ? "ring-2 ring-indigo-500 scale-105 border-white" : "border-white/10"
-                    }`}
+                    className={`w-5 h-5 rounded-full border transition hover:scale-110 cursor-pointer ${color === c.hex ? "ring-2 ring-indigo-500 scale-105 border-white" : "border-white/10"
+                      }`}
                     style={{ backgroundColor: c.hex }}
                     title={c.name}
                   />
@@ -1043,9 +1035,8 @@ export default function Whiteboard({
             <button
               type="button"
               onClick={() => setShowGrid(!showGrid)}
-              className={`p-1.5 px-2.5 rounded text-xs font-semibold flex items-center gap-1 transition cursor-pointer ${
-                showGrid ? "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20" : "bg-black text-white/40 border-white/10 hover:bg-white/5"
-              }`}
+              className={`p-1.5 px-2.5 rounded text-xs font-semibold flex items-center gap-1 transition cursor-pointer ${showGrid ? "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20" : "bg-black text-white/40 border-white/10 hover:bg-white/5"
+                }`}
               title="Show grid"
             >
               <LayoutGrid className="w-3.5 h-3.5" /> Grid
@@ -1082,7 +1073,7 @@ export default function Whiteboard({
               <span className="font-mono text-[10px] text-indigo-300 font-bold uppercase shrink-0">
                 Selected: {selectedElement.type}
               </span>
-              
+
               {(selectedElement.type === "block" || selectedElement.type === "text") && (
                 <div className="flex items-center gap-2 flex-1 max-w-sm">
                   <span className="text-[10px] text-white/40 font-mono">Label:</span>
@@ -1120,9 +1111,8 @@ export default function Whiteboard({
                         });
                         propagateWhiteboardUpdate(updated);
                       }}
-                      className={`w-3.5 h-3.5 rounded-full border border-white/10 cursor-pointer transition transform hover:scale-110 ${
-                        selectedElement.color === hex ? "ring-1 ring-white scale-115" : ""
-                      }`}
+                      className={`w-3.5 h-3.5 rounded-full border border-white/10 cursor-pointer transition transform hover:scale-110 ${selectedElement.color === hex ? "ring-1 ring-white scale-115" : ""
+                        }`}
                       style={{ backgroundColor: hex }}
                     />
                   ))}
@@ -1148,7 +1138,7 @@ export default function Whiteboard({
               >
                 <ChevronDown className="w-3 h-3" /> Back
               </button>
-              
+
               <button
                 type="button"
                 onClick={handleSelectedDelete}
@@ -1162,8 +1152,8 @@ export default function Whiteboard({
       </div>
 
       {/* Main Drawing Area Container */}
-      <div 
-        ref={containerRef} 
+      <div
+        ref={containerRef}
         className="relative flex-1 bg-[#121215] overflow-hidden cursor-crosshair min-h-[420px]"
       >
         <canvas

@@ -1,6 +1,6 @@
+import { AlertCircle, Check, Edit3, Eye, FileText, PlayCircle, RefreshCw, Sparkles } from "lucide-react";
 import React, { useState } from "react";
 import { DefenseQuestion } from "../types";
-import { Sparkles, Edit3, Check, RefreshCw, AlertCircle, PlayCircle, Eye, FileText } from "lucide-react";
 import MetadataAnalyzer, { MetadataAnalysisData } from "./MetadataAnalyzer";
 
 interface ReviewQuestionsProps {
@@ -169,11 +169,10 @@ export default function ReviewQuestions({
                   }
                   setSelectedNum(q.num);
                 }}
-                className={`p-4 rounded-xl border text-left cursor-pointer transition duration-150 ${
-                  selectedNum === q.num
-                    ? "bg-[#161622] border-indigo-500/50 ring-2 ring-indigo-500/10"
-                    : "bg-[#111] border-white/5 hover:border-white/20"
-                }`}
+                className={`p-4 rounded-xl border text-left cursor-pointer transition duration-150 ${selectedNum === q.num
+                  ? "bg-[#161622] border-indigo-500/50 ring-2 ring-indigo-500/10"
+                  : "bg-[#111] border-white/5 hover:border-white/20"
+                  }`}
               >
                 <div className="flex items-start gap-4">
                   <span className="w-6 h-6 rounded bg-indigo-600/20 text-indigo-300 font-mono text-xs flex items-center justify-center font-bold border border-indigo-500/20">
@@ -265,120 +264,120 @@ export default function ReviewQuestions({
 
         {activeRightTab === 'checkpoint' && (
           <div className="bg-[#11111d] rounded-xl border border-indigo-500/10 p-5 space-y-4 shadow-sm">
-          <div className="flex items-center justify-between border-b border-white/5 pb-3">
-            <h4 className="text-xs font-bold uppercase text-white/70 tracking-wider flex items-center gap-1.5 font-mono">
-              <FileText className="w-3.5 h-3.5 text-indigo-400" /> Ingestion Checkpoint
-            </h4>
-            <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-              {progressPercent}% VERIFIED
-            </span>
-          </div>
+            <div className="flex items-center justify-between border-b border-white/5 pb-3">
+              <h4 className="text-xs font-bold uppercase text-white/70 tracking-wider flex items-center gap-1.5 font-mono">
+                <FileText className="w-3.5 h-3.5 text-indigo-400" /> Ingestion Checkpoint
+              </h4>
+              <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                {progressPercent}% VERIFIED
+              </span>
+            </div>
 
-          {/* Progress metric */}
-          <div className="space-y-1.5">
-            <div className="w-full bg-white/5 rounded-full h-1 overflow-hidden">
-              <div 
-                className="bg-gradient-to-r from-indigo-500 to-emerald-400 h-1 transition-all duration-300"
-                style={{ width: `${progressPercent}%` }}
-              />
+            {/* Progress metric */}
+            <div className="space-y-1.5">
+              <div className="w-full bg-white/5 rounded-full h-1 overflow-hidden">
+                <div
+                  className="bg-gradient-to-r from-indigo-500 to-emerald-400 h-1 transition-all duration-300"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+              <div className="flex justify-between items-center text-[10px] text-white/40 font-mono">
+                <span>Checkpoint Tasks</span>
+                <span>{checkedCount} of {checklistTotal} verified</span>
+              </div>
             </div>
-            <div className="flex justify-between items-center text-[10px] text-white/40 font-mono">
-              <span>Checkpoint Tasks</span>
-              <span>{checkedCount} of {checklistTotal} verified</span>
-            </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-3 text-xs pt-1">
-            <div className="space-y-1 bg-black/40 p-2 rounded border border-white/5">
-              <span className="text-[10px] text-white/30 block uppercase tracking-wider font-mono">Candidate</span>
-              <span className="text-white/80 font-medium truncate block">{studentName}</span>
+            <div className="grid grid-cols-2 gap-3 text-xs pt-1">
+              <div className="space-y-1 bg-black/40 p-2 rounded border border-white/5">
+                <span className="text-[10px] text-white/30 block uppercase tracking-wider font-mono">Candidate</span>
+                <span className="text-white/80 font-medium truncate block">{studentName}</span>
+              </div>
+              <div className="space-y-1 bg-black/40 p-2 rounded border border-white/5">
+                <span className="text-[10px] text-white/30 block uppercase tracking-wider font-mono">Course / Subject</span>
+                <span className="text-white/80 font-medium truncate block">{courseName}</span>
+              </div>
+              <div className="space-y-1 bg-black/40 p-2 rounded border border-white/5">
+                <span className="text-[10px] text-white/30 block uppercase tracking-wider font-mono">Document Volume</span>
+                <span className="text-white/80 font-mono block">{wordCount} words / {charCount} chars</span>
+              </div>
+              <div className="space-y-1 bg-black/40 p-2 rounded border border-white/5">
+                <span className="text-[10px] text-white/30 block uppercase tracking-wider font-mono">Complexity Grade</span>
+                <span className="text-white/80 font-mono block">~{estReadTime} min read content</span>
+              </div>
             </div>
-            <div className="space-y-1 bg-black/40 p-2 rounded border border-white/5">
-              <span className="text-[10px] text-white/30 block uppercase tracking-wider font-mono">Course / Subject</span>
-              <span className="text-white/80 font-medium truncate block">{courseName}</span>
-            </div>
-            <div className="space-y-1 bg-black/40 p-2 rounded border border-white/5">
-              <span className="text-[10px] text-white/30 block uppercase tracking-wider font-mono">Document Volume</span>
-              <span className="text-white/80 font-mono block">{wordCount} words / {charCount} chars</span>
-            </div>
-            <div className="space-y-1 bg-black/40 p-2 rounded border border-white/5">
-              <span className="text-[10px] text-white/30 block uppercase tracking-wider font-mono">Complexity Grade</span>
-              <span className="text-white/80 font-mono block">~{estReadTime} min read content</span>
-            </div>
-          </div>
 
-          {/* Segment snippet drawer */}
-          <div className="bg-black/80 rounded-lg p-3 border border-white/5 text-xs">
-            <div className="flex items-center justify-between pointer-events-auto">
-              <span className="text-[10px] text-white/40 font-mono uppercase tracking-wider font-bold">Source Content Review</span>
-              <button
-                type="button"
-                id="toggle-source-content-inspect-btn"
-                onClick={() => setShowFullText(!showFullText)}
-                className="text-indigo-400 hover:text-indigo-300 text-[10px] font-bold font-mono uppercase flex items-center gap-1"
-              >
-                {showFullText ? "Hide Full Raw Text" : "Inspect Raw Text"}
-                <Eye className="w-3 h-3" />
-              </button>
+            {/* Segment snippet drawer */}
+            <div className="bg-black/80 rounded-lg p-3 border border-white/5 text-xs">
+              <div className="flex items-center justify-between pointer-events-auto">
+                <span className="text-[10px] text-white/40 font-mono uppercase tracking-wider font-bold">Source Content Review</span>
+                <button
+                  type="button"
+                  id="toggle-source-content-inspect-btn"
+                  onClick={() => setShowFullText(!showFullText)}
+                  className="text-indigo-400 hover:text-indigo-300 text-[10px] font-bold font-mono uppercase flex items-center gap-1"
+                >
+                  {showFullText ? "Hide Full Raw Text" : "Inspect Raw Text"}
+                  <Eye className="w-3 h-3" />
+                </button>
+              </div>
+              <div className={`mt-2 font-serif text-white/70 leading-relaxed custom-scrollbar overflow-y-auto transition-all ${showFullText ? 'max-h-[220px]' : 'max-h-[60px] blur-[0.5px]'}`}>
+                {showFullText ? pastedText : (pastedText ? `${pastedText.substring(0, 180)}...` : "Empty source text draft uploaded.")}
+              </div>
             </div>
-            <div className={`mt-2 font-serif text-white/70 leading-relaxed custom-scrollbar overflow-y-auto transition-all ${showFullText ? 'max-h-[220px]' : 'max-h-[60px] blur-[0.5px]'}`}>
-              {showFullText ? pastedText : (pastedText ? `${pastedText.substring(0, 180)}...` : "Empty source text draft uploaded.")}
+
+            {/* Checklist controls */}
+            <div className="space-y-2 pt-2 border-t border-white/5">
+              <span className="text-[10px] uppercase font-bold tracking-widest text-indigo-400 font-mono block">Milestone Status Verification</span>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  id="checkpoint-cb-source"
+                  onClick={() => setChecklist(prev => ({ ...prev, sourceChecked: !prev.sourceChecked }))}
+                  className={`flex items-center gap-2 p-2 rounded-lg border text-left text-xs transition select-none ${checklist.sourceChecked ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-300' : 'bg-black/20 border-white/5 text-white/40 hover:border-white/10'}`}
+                >
+                  <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border ${checklist.sourceChecked ? 'bg-[#1b1b2f] border-indigo-400 text-indigo-300' : 'border-white/20'}`}>
+                    {checklist.sourceChecked && <Check className="w-2.5 h-2.5 stroke-[4px]" />}
+                  </div>
+                  <span className="truncate">Source Verified</span>
+                </button>
+
+                <button
+                  type="button"
+                  id="checkpoint-cb-identity"
+                  onClick={() => setChecklist(prev => ({ ...prev, identitySynced: !prev.identitySynced }))}
+                  className={`flex items-center gap-2 p-2 rounded-lg border text-left text-xs transition select-none ${checklist.identitySynced ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-300' : 'bg-black/20 border-white/5 text-white/40 hover:border-white/10'}`}
+                >
+                  <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border ${checklist.identitySynced ? 'bg-[#1b1b2f] border-indigo-400 text-indigo-300' : 'border-white/20'}`}>
+                    {checklist.identitySynced && <Check className="w-2.5 h-2.5 stroke-[4px]" />}
+                  </div>
+                  <span className="truncate">Identity Synced</span>
+                </button>
+
+                <button
+                  type="button"
+                  id="checkpoint-cb-lexicon"
+                  onClick={() => setChecklist(prev => ({ ...prev, lexiconApproved: !prev.lexiconApproved }))}
+                  className={`flex items-center gap-2 p-2 rounded-lg border text-left text-xs transition select-none ${checklist.lexiconApproved ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-300' : 'bg-black/20 border-white/5 text-white/40 hover:border-white/10'}`}
+                >
+                  <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border ${checklist.lexiconApproved ? 'bg-[#1b1b2f] border-indigo-400 text-indigo-300' : 'border-white/20'}`}>
+                    {checklist.lexiconApproved && <Check className="w-2.5 h-2.5 stroke-[4px]" />}
+                  </div>
+                  <span className="truncate">Lexicon Calibrated</span>
+                </button>
+
+                <button
+                  type="button"
+                  id="checkpoint-cb-questions"
+                  onClick={() => setChecklist(prev => ({ ...prev, questionsVerified: !prev.questionsVerified }))}
+                  className={`flex items-center gap-2 p-2 rounded-lg border text-left text-xs transition select-none ${checklist.questionsVerified ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-300' : 'bg-black/20 border-white/5 text-white/40 hover:border-white/10'}`}
+                >
+                  <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border ${checklist.questionsVerified ? 'bg-[#1b1b2f] border-indigo-400 text-indigo-300' : 'border-white/20'}`}>
+                    {checklist.questionsVerified && <Check className="w-2.5 h-2.5 stroke-[4px]" />}
+                  </div>
+                  <span className="truncate">Syllabus Confirmed</span>
+                </button>
+              </div>
             </div>
-          </div>
-
-          {/* Checklist controls */}
-          <div className="space-y-2 pt-2 border-t border-white/5">
-            <span className="text-[10px] uppercase font-bold tracking-widest text-indigo-400 font-mono block">Milestone Status Verification</span>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                id="checkpoint-cb-source"
-                onClick={() => setChecklist(prev => ({ ...prev, sourceChecked: !prev.sourceChecked }))}
-                className={`flex items-center gap-2 p-2 rounded-lg border text-left text-xs transition select-none ${checklist.sourceChecked ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-300' : 'bg-black/20 border-white/5 text-white/40 hover:border-white/10'}`}
-              >
-                <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border ${checklist.sourceChecked ? 'bg-[#1b1b2f] border-indigo-400 text-indigo-300' : 'border-white/20'}`}>
-                  {checklist.sourceChecked && <Check className="w-2.5 h-2.5 stroke-[4px]" />}
-                </div>
-                <span className="truncate">Source Verified</span>
-              </button>
-
-              <button
-                type="button"
-                id="checkpoint-cb-identity"
-                onClick={() => setChecklist(prev => ({ ...prev, identitySynced: !prev.identitySynced }))}
-                className={`flex items-center gap-2 p-2 rounded-lg border text-left text-xs transition select-none ${checklist.identitySynced ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-300' : 'bg-black/20 border-white/5 text-white/40 hover:border-white/10'}`}
-              >
-                <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border ${checklist.identitySynced ? 'bg-[#1b1b2f] border-indigo-400 text-indigo-300' : 'border-white/20'}`}>
-                  {checklist.identitySynced && <Check className="w-2.5 h-2.5 stroke-[4px]" />}
-                </div>
-                <span className="truncate">Identity Synced</span>
-              </button>
-
-              <button
-                type="button"
-                id="checkpoint-cb-lexicon"
-                onClick={() => setChecklist(prev => ({ ...prev, lexiconApproved: !prev.lexiconApproved }))}
-                className={`flex items-center gap-2 p-2 rounded-lg border text-left text-xs transition select-none ${checklist.lexiconApproved ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-300' : 'bg-black/20 border-white/5 text-white/40 hover:border-white/10'}`}
-              >
-                <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border ${checklist.lexiconApproved ? 'bg-[#1b1b2f] border-indigo-400 text-indigo-300' : 'border-white/20'}`}>
-                  {checklist.lexiconApproved && <Check className="w-2.5 h-2.5 stroke-[4px]" />}
-                </div>
-                <span className="truncate">Lexicon Calibrated</span>
-              </button>
-
-              <button
-                type="button"
-                id="checkpoint-cb-questions"
-                onClick={() => setChecklist(prev => ({ ...prev, questionsVerified: !prev.questionsVerified }))}
-                className={`flex items-center gap-2 p-2 rounded-lg border text-left text-xs transition select-none ${checklist.questionsVerified ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-300' : 'bg-black/20 border-white/5 text-white/40 hover:border-white/10'}`}
-              >
-                <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border ${checklist.questionsVerified ? 'bg-[#1b1b2f] border-indigo-400 text-indigo-300' : 'border-white/20'}`}>
-                  {checklist.questionsVerified && <Check className="w-2.5 h-2.5 stroke-[4px]" />}
-                </div>
-                <span className="truncate">Syllabus Confirmed</span>
-              </button>
-            </div>
-          </div>
           </div>
         )}
 

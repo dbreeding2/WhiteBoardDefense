@@ -1,18 +1,12 @@
-import React from "react";
-import { 
-  FileText, 
-  TrendingUp, 
-  CheckCircle, 
-  XCircle, 
-  AlertTriangle, 
-  Activity, 
+import {
+  AlertTriangle,
   BookMarked,
-  Layers,
-  HelpCircle,
+  CheckCircle,
+  Compass,
   FileCheck,
+  HelpCircle,
   ShieldCheck,
-  Percent,
-  Compass
+  XCircle
 } from "lucide-react";
 
 export interface MetadataAnalysisData {
@@ -195,7 +189,7 @@ export default function MetadataAnalyzer({ analysis, isLoading }: MetadataAnalyz
             <span className="font-bold text-white text-[11px]">{aiAlertLabel}</span>
           </div>
           <div className="h-1.5 bg-black/40 rounded-full overflow-hidden">
-            <div 
+            <div
               className={`h-1.5 transition-all duration-300 ${aiScore > 65 ? 'bg-red-500' : (aiScore > 35 ? 'bg-amber-400' : 'bg-emerald-400')}`}
               style={{ width: `${aiScore}%` }}
             />
@@ -216,7 +210,7 @@ export default function MetadataAnalyzer({ analysis, isLoading }: MetadataAnalyz
         <h5 className="text-[10px] font-bold uppercase tracking-widest text-amber-400 font-mono flex items-center gap-1.5">
           <AlertTriangle className="w-3.5 h-3.5 text-amber-400 animate-pulse" /> Conceptual Assumptions & Weaknesses
         </h5>
-        
+
         <p className="text-[11.5px] text-white/50 leading-relaxed">
           The following assumptions or missing empirical grounds are flagged for focused oral defense verification. Watch out for potential faked or hallucinated theoretical elements!
         </p>

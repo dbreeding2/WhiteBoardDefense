@@ -1,19 +1,19 @@
-import React, { useState, FormEvent, useRef } from "react";
-import { 
-  ChevronRight, 
-  FileText, 
-  Sparkles, 
-  BookOpen, 
-  User, 
-  Clipboard, 
-  Code, 
-  Presentation, 
-  GraduationCap, 
-  Layers, 
+import type JSZip from "jszip";
+import {
+  BookOpen,
+  ChevronRight,
+  Clipboard,
+  Code,
   FileCode,
+  FileText,
   Image,
+  Layers,
+  Presentation,
+  Sparkles,
+  User,
   X
 } from "lucide-react";
+import React, { FormEvent, useRef, useState } from "react";
 
 interface SetupFormProps {
   onSetupComplete: (studentName: string, paperTitle: string, courseName: string, pastedText: string, activityType: string, assessmentMode: 'ai' | 'instructor', pastedDiagram: string | null) => void;
@@ -82,7 +82,7 @@ const activityConfigs: {
 async function extractPptxText(file: File): Promise<string> {
   // Dynamically import JSZip -- it's already in node_modules via the xlsx dependency chain
   // If JSZip is not available, fall back to a helpful error message
-  let JSZip: any;
+  let JSZip: JSZip;
   try {
     // Try the package that's most likely bundled
     const mod = await import("jszip");
@@ -315,11 +315,10 @@ export default function SetupForm({ onSetupComplete, isLoading, assessmentMode, 
                   key={key}
                   type="button"
                   onClick={() => setActivityType(key)}
-                  className={`flex flex-col items-center justify-center p-3 rounded-xl border text-center transition outline-none cursor-pointer ${
-                    isSelected 
-                      ? "bg-indigo-600/10 border-indigo-500 text-white shadow-indigo-500/5 ring-1 ring-indigo-500/20" 
-                      : "bg-black border-white/5 text-white/50 hover:border-white/25 hover:text-white"
-                  }`}
+                  className={`flex flex-col items-center justify-center p-3 rounded-xl border text-center transition outline-none cursor-pointer ${isSelected
+                    ? "bg-indigo-600/10 border-indigo-500 text-white shadow-indigo-500/5 ring-1 ring-indigo-500/20"
+                    : "bg-black border-white/5 text-white/50 hover:border-white/25 hover:text-white"
+                    }`}
                 >
                   <IconComp className={`w-5 h-5 mb-1.5 ${isSelected ? "text-indigo-400 animate-pulse" : "text-white/30"}`} />
                   <span className="text-xs font-medium font-sans truncate w-full">{config.name}</span>
@@ -384,7 +383,7 @@ export default function SetupForm({ onSetupComplete, isLoading, assessmentMode, 
               <FileText className="w-10 h-10 text-white/30 mb-2" />
               <p className="text-xs font-semibold text-white/70">{currentConfig.fileLabel}</p>
               <p className="text-[11px] text-white/40 mt-0.5">{currentConfig.fileDesc}</p>
-              
+
               <input
                 type="file"
                 id="paper-file-upload-input"
@@ -493,11 +492,10 @@ export default function SetupForm({ onSetupComplete, isLoading, assessmentMode, 
             <button
               type="button"
               onClick={() => setAssessmentMode("ai")}
-              className={`p-4 rounded-xl border text-left transition duration-200 cursor-pointer ${
-                assessmentMode === "ai"
-                  ? "bg-indigo-500/10 border-indigo-500 text-white shadow-lg shadow-indigo-500/10"
-                  : "bg-[#0b0b0f] border-white/5 text-white/60 hover:bg-white/5 hover:text-white"
-              }`}
+              className={`p-4 rounded-xl border text-left transition duration-200 cursor-pointer ${assessmentMode === "ai"
+                ? "bg-indigo-500/10 border-indigo-500 text-white shadow-lg shadow-indigo-500/10"
+                : "bg-[#0b0b0f] border-white/5 text-white/60 hover:bg-white/5 hover:text-white"
+                }`}
             >
               <div className="flex items-center gap-2 mb-1.5">
                 <Sparkles className={`w-4 h-4 ${assessmentMode === "ai" ? "text-indigo-400 animate-pulse" : "text-white/45"}`} />
@@ -511,11 +509,10 @@ export default function SetupForm({ onSetupComplete, isLoading, assessmentMode, 
               type="button"
               id="instructor-mode-button"
               onClick={() => setAssessmentMode("instructor")}
-              className={`p-4 rounded-xl border text-left transition duration-200 cursor-pointer ${
-                assessmentMode === "instructor"
-                  ? "bg-indigo-500/10 border-indigo-500 text-white shadow-lg shadow-indigo-500/10"
-                  : "bg-[#0b0b0f] border-white/5 text-white/60 hover:bg-white/5 hover:text-white"
-              }`}
+              className={`p-4 rounded-xl border text-left transition duration-200 cursor-pointer ${assessmentMode === "instructor"
+                ? "bg-indigo-500/10 border-indigo-500 text-white shadow-lg shadow-indigo-500/10"
+                : "bg-[#0b0b0f] border-white/5 text-white/60 hover:bg-white/5 hover:text-white"
+                }`}
             >
               <div className="flex items-center gap-2 mb-1.5">
                 <User className={`w-4 h-4 ${assessmentMode === "instructor" ? "text-indigo-400" : "text-white/45"}`} />
